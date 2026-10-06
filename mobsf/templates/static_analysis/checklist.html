@@ -1,0 +1,110 @@
+{% extends "base/base_layout.html" %}
+{% load static %}
+{% block sidebar_option %}
+sidebar-collapse
+{% endblock %}
+{% block extra_css %}
+<style>
+  .cl-row.hidden { display: none; }
+  .cl-stat { cursor: pointer; }
+  .cl-bar { height: 10px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid">
+      <h1>
+        <img src="{% static "img/mobsf_icon.png" %}" id="mobsf" alt="MobSF"> Security Checklist
+        - {% if app_name %}{{ app_name }}{% else %}{{ file_name }}{% endif %}
+      </h1>
+      <a class="btn btn-sm btn-outline-primary mt-2" href="{% url 'appsec_dashboard' checksum=hash %}"><i class="fas fa-arrow-left"></i> Back to Scorecard</a>
+    </div>
+  </section>
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        {% for std, cl in checklist.items %}
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">OWASP {{ std }}</h3></div>
+            <div class="card-body">
+              <div class="progress cl-bar mb-2">
+                <div class="progress-bar bg-success" data-std="{{ std }}" data-key="Success"></div>
+                <div class="progress-bar bg-danger" data-std="{{ std }}" data-key="Failed"></div>
+                <div class="progress-bar bg-warning" data-std="{{ std }}" data-key="ToBeTest"></div>
+                <div class="progress-bar bg-secondary" data-std="{{ std }}" data-key="NotApplicable"></div>
+              </div>
+              <span class="badge badge-success">Success {{ cl.summary.Success }}</span>
+              <span class="badge badge-danger">Failed {{ cl.summary.Failed }}</span>
+              <span class="badge badge-warning">To be tested {{ cl.summary.ToBeTest }}</span>
+              <span class="badge badge-secondary">N/A {{ cl.summary.NotApplicable }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card">
+        <div class="card-header p-2">
+          <ul class="nav nav-pills">
+            {% for std, cl in checklist.items %}
+            <li class="nav-item"><a class="nav-link {% if forloop.first %}active{% endif %}" href="#tab-{{ std }}" data-toggle="tab">{{ std }}</a></li>
+            {% endfor %}
+          </ul>
+          <div class="float-right form-inline">
+            <select id="cl-status" class="form-control form-control-sm mr-2">
+              <option value="">All statuses</option>
+              <option value="Failed">Failed</option>
+              <option value="Success">Success</option>
+              <option value="ToBeTest">To be tested</option>
+              <option value="NotApplicable">N/A</option>
+            </select>
+            <input id="cl-search" class="form-control form-control-sm" placeholder="Search id / title">
+          </div>
+        </div>
+        <div class="card-body tab-content">
+          {% for std, cl in checklist.items %}
+          <div class="tab-pane {% if forloop.first %}active{% endif %}" id="tab-{{ std }}">
+            <table class="table table-sm table-striped">
+              <thead><tr><th>ID</th><th>Title</th><th>Evidence</th><th>Status</th></tr></thead>
+              <tbody>
+              {% for it in cl.items %}
+                <tr class="cl-row" data-status="{{ it.status }}">
+                  <td>{{ it.id }}</td>
+                  <td>{{ it.title }}</td>
+                  <td>{% for e in it.evidence %}<div class="small text-muted">{{ e }}</div>{% endfor %}</td>
+                  <td>{% if it.status == 'Success' %}<span class="badge badge-success">Success</span>{% elif it.status == 'Failed' %}<span class="badge badge-danger">Failed</span>{% elif it.status == 'ToBeTest' %}<span class="badge badge-warning">To be tested</span>{% else %}<span class="badge badge-secondary">N/A</span>{% endif %}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  var SUMMARY = {{ summary_json|safe }};
+  document.querySelectorAll('.progress-bar[data-std]').forEach(function (b) {
+    var s = SUMMARY[b.dataset.std], total = 0;
+    Object.keys(s).forEach(function (k) { total += s[k]; });
+    b.style.width = (total ? 100 * s[b.dataset.key] / total : 0) + '%';
+  });
+  function applyFilter() {
+    var st = document.getElementById('cl-status').value;
+    var q = document.getElementById('cl-search').value.toLowerCase();
+    document.querySelectorAll('.cl-row').forEach(function (r) {
+      var ok = (!st || r.dataset.status === st) &&
+               (!q || r.textContent.toLowerCase().indexOf(q) > -1);
+      r.classList.toggle('hidden', !ok);
+    });
+  }
+  document.getElementById('cl-status').addEventListener('change', applyFilter);
+  document.getElementById('cl-search').addEventListener('input', applyFilter);
+</script>
+{% endblock %}

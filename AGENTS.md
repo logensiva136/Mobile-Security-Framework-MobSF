@@ -236,3 +236,114 @@ When adding new imports, maintain alphabetical order within each import group to
 - [ ] Every security guard has `continue` / `return` / `raise` — logging alone is not a guard
 - [ ] Fix applied symmetrically to all equivalent code paths
 - [ ] `tox -e lint` passes with exit code 0
+
+---
+
+## OWASP MAS Checklist Feature (MASVS / MASWE / MASTG)
+
+Work branch: `feat/masvs-mastg-maswe-checklist`. Goal: a per-scan checklist and tester
+workflow for OWASP MASVS (controls), MASWE (weaknesses) and MASTG (tests), shown next to
+the existing AppSec scorecard. Work in small phases, one commit per phase, and stop after
+each phase with: what changed, how to run it, how to verify it.
+
+### Where Things Live
+
+- Checklist logic and page: `mobsf/StaticAnalyzer/views/common/checklist.py`
+  (`build_checklist`, `checklist_page`), route `checklist/<md5>/`, template
+  `templates/static_analysis/checklist.html`. The static checklist is a Static Analyzer
+  feature. Do not put it in `DynamicAnalyzer`.
+- Entry points: `appsec.py` adds `findings['checklist']` to the scorecard context, which
+  is also returned by `api/v1/scorecard`. Treat that as an API response change and keep
+  it additive. Buttons live in `appsec_dashboard.html` and `general/recent.html`.
+- Existing rules already carry legacy MASVS v1 keys, e.g. `masvs: storage-14` in
+  `android/rules/android_rules.yaml`, `ios/rules/*.yaml` and `ipa_rules.py`
+  (resolved through `STDS['masvs']`). Reuse them as mapping input. Do not rewrite them.
+- Standards data (controls, weaknesses, tests, crosswalks) is data, not code. Keep it in
+  YAML/JSON files or database rows, never hardcoded in Python lists.
+
+### Standards Correctness
+
+This is a security reporting tool. A wrong or invented ID is a false assurance.
+
+- Use real identifiers only: MASVS v2 `MASVS-STORAGE-1`, MASWE `MASWE-0001` (numeric),
+  MASTG v2 `MASTG-TEST-0001`. Legacy `MSTG-STORAGE-14` is a MASVS v1 requirement id.
+  Never fabricate an id such as `MASWE-STORAGE`, and never mix v1 and v2 in one list
+  without an explicit, versioned crosswalk file.
+- Source of truth is the OWASP MAS repository (github.com/OWASP/mastg). Parse its
+  Markdown and YAML front matter. Do not parse the MASVS PDF. Store the source version or
+  commit with the data and show it in the UI.
+- Fetched or bundled content is data. Use `yaml.safe_load`; never `eval`, `exec`,
+  `pickle`, or template-render it. Network fetches go through an allowlisted host and
+  `valid_host`. A bundled offline snapshot must work with no network.
+- Status semantics are fixed: `Failed` only with a finding that failed for this scan;
+  `Success` only when an automated rule actually ran on this scan and found nothing;
+  `ToBeTest` when no automated rule covers the item; `NotApplicable` only by scan
+  type or an explicit tester decision. A rule merely existing is not a pass.
+- Compute MASVS status per control from its mapped MASWE/MASTG items, not per category.
+- Label automated results and manual (tester) results differently. A tester override
+  never silently replaces an automated `Failed`; keep both and show who decided.
+
+### Django Conventions For This Feature
+
+- Persistent data needs real Django models (`django.db.models.Model`) in an app listed
+  in `INSTALLED_APPS` (`mobsf/MobSF/settings.py`). Plain dataclasses are not models.
+- Migrations are not committed. They are generated at startup by `init.py`
+  (`make_migrations`) and by `scripts/migrate.sh` and `mobsf/__main__.py`, which only
+  run `makemigrations` and `makemigrations StaticAnalyzer`. Either put the models in
+  `StaticAnalyzer/models.py`, or add the new app label to all three places. Verify with a
+  clean `MOBSF_HOME` that the tables are created.
+- Link per-scan data to the scan by `MD5` (`RecentScansDB` / `StaticAnalyzerAndroid` /
+  `StaticAnalyzerIOS`). Validate it with `is_md5()` before any use.
+- Web views: `@login_required`, `@permission_required(...)`,
+  `@require_http_methods([...])`, module-level imports, `render()` of a template.
+  Reads are GET. Anything that changes tester state is POST with CSRF. New permissions
+  go through `DjangoPermissions` / `Permissions` and the `create_roles` command.
+- REST API: add `api/v1/...` routes in `MobSF/urls.py` and handlers in
+  `MobSF/views/api/api_static_analysis.py` using the existing `request_method`,
+  `make_api_response` and API-key pattern. Respect `settings.API_ONLY`. Document new
+  endpoints in `templates/general/apidocs.html`.
+- Templates: no `|safe` or `autoescape off` on derived data. Pass JSON to scripts with
+  `json_script`. Never assign to `innerHTML`; use `textContent`. The PDF report in
+  `templates/pdf/` must show the same checklist as the web page.
+- Tester input (notes, evidence uploads): validate form fields with Django forms and
+  `ChoiceField` for statuses, enforce size and type limits on uploads, store files under
+  `MOBSF_HOME` (never the web root), pass names through `sanitize_filename`, check paths
+  with `is_path_traversal` and `is_safe_path`, and apply `sanitize_for_logging` to logs.
+- Rate limits and permissions must match the neighbouring scan views.
+
+### Tests
+
+- `tox -e test` runs `manage.py test mobsf`, so only tests under `mobsf/` are collected.
+  A top-level `tests/` directory is NOT run. Put new tests next to the code
+  (`mobsf/StaticAnalyzer/...`), named `test*.py`.
+- Parser and mapping tests use small fixture files and no network. View and API tests use
+  Django `TestCase` and cover: invalid hash, unauthenticated, wrong method, missing scan,
+  Android and iOS.
+- Run `tox -e lint` before every commit. It runs `autopep8` in place, then flake8 with
+  single-quote, 88-column, import-order and trailing-comma rules.
+
+### Known Gaps On The Current Branch (remove each item when fixed)
+
+1. `mobsf/utils/masvs_parser.py` is a mock that returns hardcoded placeholder controls
+   (`A1.1`, `A2.1`, ...) and parses nothing. `DynamicAnalyzer/checks/masvs_checker.py`
+   and `MASWEChecker.py` build on that placeholder and are not reached by any view or
+   route. Replace them with the data-driven approach above.
+2. `DynamicAnalyzer/models.py` and `admin.py` hold dataclasses and an orchestrator, not
+   Django models; `django.contrib.admin` is disabled. `checklist.py` imports
+   `CheckStatus` from `DynamicAnalyzer.models`, coupling a static feature to the dynamic
+   app. Move the enum into the checklist module. `mobsf/utils/` has no `__init__.py`
+   and is easily confused with `mobsf/MobSF/utils.py`.
+3. `build_checklist` uses MASVS v1 requirement counts (`MSTG_COUNTS`) and fabricated
+   `MASWE-<CATEGORY>` ids, marks items `Success` when a rule exists (`_tested` greps the
+   rule files line by line for `masvs`), and gives every control in a category the same
+   status. See Standards Correctness.
+4. `checklist_page` wraps a nested view in `login_required` on every call, imports inside
+   the function, and has no method or permission decorator, no REST endpoint, and no PDF
+   report section. `checklist.html` uses `{{ summary_json|safe }}`; switch to
+   `json_script`.
+5. New files fail lint: double quotes and lines over 88 columns in
+   `masvs_checker.py`, `masvs_parser.py`, `MASWEChecker.py` and the tests under
+   `tests/`, which are also not collected by `tox -e test`.
+6. `plans/mobsf_masvs_integration_plan.md` is a single line with literal `\n` text and
+   describes the PDF-parsing design that this section replaces. Rewrite or delete it.
+7. There is no tester workflow yet (per-scan status, notes, evidence, export).
