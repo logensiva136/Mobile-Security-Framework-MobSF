@@ -88,8 +88,10 @@ sidebar-collapse
 </div>
 {% endblock %}
 {% block extra_scripts %}
+{{ summary|json_script:"cl-summary" }}
 <script>
-  var SUMMARY = {{ summary_json|safe }};
+  var SUMMARY = JSON.parse(
+    document.getElementById('cl-summary').textContent);
   document.querySelectorAll('.progress-bar[data-std]').forEach(function (b) {
     var s = SUMMARY[b.dataset.std], total = 0;
     Object.keys(s).forEach(function (k) { total += s[k]; });

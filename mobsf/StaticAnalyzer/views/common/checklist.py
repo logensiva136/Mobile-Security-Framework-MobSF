@@ -9,7 +9,6 @@ Success, Failed, ToBeTest or NotApplicable.
 * ToBeTest: no automated rule covers the item, so it needs manual testing.
 * NotApplicable: the scan type has no checklist (e.g. APPX, JAR/AAR).
 """
-import json
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -98,8 +97,11 @@ def _agg(statuses):
 
 
 def _masvs_status(cat, mastg, review, applicable):
-    """Failed if any test failed, ToBeTest if a finding needs review,
-    Success if automated tests ran clean, else ToBeTest."""
+    """Aggregate MASTG items of a category into one status.
+
+    Failed if any test failed, ToBeTest if a finding needs review,
+    Success if automated tests ran clean, else ToBeTest.
+    """
     if not applicable:
         return CheckStatus.NOT_APPLICABLE
     items = [i for i in mastg if i['id'].split('-')[1] == cat]
@@ -185,49 +187,3 @@ def build_checklist(data, platform):
         'MASTG': {'items': mastg, 'summary': summarize(mastg)},
         'MASWE': {'items': maswe, 'summary': summarize(maswe)},
     }
-
-
-def checklist_page(request, checksum, api=False):
-    """Dedicated MASVS/MASTG/MASWE checklist page for a scanned app."""
-    from django.shortcuts import render
-    from mobsf.MobSF import settings
-    from mobsf.MobSF.utils import is_md5, print_n_send_error_response
-    from mobsf.MobSF.views.authentication import login_required
-    from mobsf.StaticAnalyzer.models import (
-        StaticAnalyzerAndroid, StaticAnalyzerIOS)
-    from mobsf.StaticAnalyzer.views.android.db_interaction import (
-        get_context_from_db_entry as adb)
-    from mobsf.StaticAnalyzer.views.ios.db_interaction import (
-        get_context_from_db_entry as idb)
-
-    def _view(request, checksum, api=False):
-        if not is_md5(checksum):
-            return print_n_send_error_response(request, 'Invalid Hash', api)
-        android = StaticAnalyzerAndroid.objects.filter(MD5=checksum).first()
-        ios = StaticAnalyzerIOS.objects.filter(MD5=checksum).first()
-        if android:
-            data, platform = adb([android]), 'android'
-        elif ios:
-            data, platform = idb([ios]), 'ios'
-        else:
-            msg = 'Report not found or supported'
-            if api:
-                return {'not_found': msg}
-            return print_n_send_error_response(request, msg, api)
-        checklist = build_checklist(data, platform)
-        context = {
-            'checklist': checklist,
-            'summary_json': json.dumps(
-                {k: v['summary'] for k, v in checklist.items()}),
-            'platform': platform,
-            'hash': checksum,
-            'file_name': data.get('file_name', ''),
-            'app_name': data.get('app_name', ''),
-            'version': settings.MOBSF_VER,
-            'title': 'Security Checklist',
-        }
-        if api:
-            return context
-        return render(request, 'static_analysis/checklist.html', context)
-
-    return login_required(_view)(request, checksum, api)

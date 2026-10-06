@@ -39,8 +39,8 @@ from mobsf.MobSF.views.api import api_ios_device_analysis as api_iddz
 from mobsf.StaticAnalyzer import tests
 from mobsf.StaticAnalyzer.views.common import (
     appsec,
-    checklist,
     async_task,
+    checklist_view,
     pdf,
     shared_func,
     suppression,
@@ -269,7 +269,7 @@ if settings.API_ONLY == '0':
         # Shared
         re_path(fr'^pdf/{checksum_regex}/$', pdf.pdf, name='pdf'),
         re_path(fr'^checklist/{checksum_regex}/$',
-                checklist.checklist_page,
+                checklist_view.checklist_page,
                 name='checklist'),
         re_path(fr'^appsec_dashboard/{checksum_regex}/$',
                 appsec.appsec_dashboard,

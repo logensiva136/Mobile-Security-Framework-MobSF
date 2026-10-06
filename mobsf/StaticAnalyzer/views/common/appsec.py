@@ -13,13 +13,13 @@ from mobsf.MobSF.utils import (
     is_md5,
     print_n_send_error_response,
 )
-from mobsf.StaticAnalyzer.views.common.checklist import build_checklist
 from mobsf.StaticAnalyzer.models import (
     StaticAnalyzerAndroid,
     StaticAnalyzerIOS,
 )
 from mobsf.StaticAnalyzer.views.android.db_interaction import (
     get_context_from_db_entry as adb)
+from mobsf.StaticAnalyzer.views.common.checklist import build_checklist
 from mobsf.StaticAnalyzer.views.ios.db_interaction import (
     get_context_from_db_entry as idb)
 from mobsf.MobSF.views.authentication import (

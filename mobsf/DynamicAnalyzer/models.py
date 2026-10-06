@@ -1,5 +1,5 @@
 """Data models for the dynamic analyzer compliance checks."""
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -42,6 +42,7 @@ class ChecklistResult:
 @dataclass
 class AnalysisContext:
     """Data gathered by scanners, consumed by the compliance checkers."""
+
     runtime_vars: Dict[str, Any] = field(default_factory=dict)
     credentials: Dict[str, Any] = field(default_factory=dict)
     local_storage: Dict[str, Any] = field(default_factory=dict)
@@ -54,6 +55,7 @@ class AnalysisContext:
 @dataclass
 class Finding:
     """One evaluated MASVS control. status: PASS|FAIL|WARN|SKIP."""
+
     control_id: str
     summary: str
     status: str
@@ -68,6 +70,7 @@ class Finding:
 @dataclass
 class ScanResult:
     """MASVS findings plus a summary compliance score."""
+
     masvs_findings: List[Finding] = field(default_factory=list)
 
     @property
