@@ -227,10 +227,8 @@ def build_checklist(data, platform, standards=None):
     }
 
 
-@login_required
-@require_http_methods(['GET'])
-def checklist_page(request, checksum, api=False):
-    """Dedicated MASVS/MASWE/MASTG checklist page for a scanned app."""
+def _checklist_response(request, checksum, api):
+    """Build the checklist page or API response for a scan hash."""
     if not is_md5(checksum):
         return print_n_send_error_response(request, 'Invalid Hash', api)
     android = StaticAnalyzerAndroid.objects.filter(MD5=checksum).first()
@@ -246,6 +244,14 @@ def checklist_page(request, checksum, api=False):
         return print_n_send_error_response(request, msg, api)
     refresh_if_stale()
     checklist = build_checklist(data, platform)
+    if api:
+        return {
+            'hash': checksum,
+            'app_name': data.get('app_name', ''),
+            'file_name': data.get('file_name', ''),
+            'platform': platform,
+            'checklist': checklist,
+        }
     sections = [(n, checklist[n]) for n in ('MASVS', 'MASWE', 'MASTG')]
     context = {
         'checklist': checklist,
@@ -259,6 +265,17 @@ def checklist_page(request, checksum, api=False):
         'version': settings.MOBSF_VER,
         'title': 'Security Checklist',
     }
-    if api:
-        return context
     return render(request, 'static_analysis/checklist.html', context)
+
+
+@login_required
+@require_http_methods(['GET'])
+def checklist_page(request, checksum):
+    """Dedicated MASVS/MASWE/MASTG checklist page for a scanned app."""
+    return _checklist_response(request, checksum, False)
+
+
+@login_required
+def checklist_api(request, checksum, api=True):
+    """Checklist data for the REST API (called by api_checklist)."""
+    return _checklist_response(request, checksum, api)

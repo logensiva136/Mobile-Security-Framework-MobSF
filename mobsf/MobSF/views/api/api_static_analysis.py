@@ -33,6 +33,7 @@ from mobsf.StaticAnalyzer.views.common.suppression import (
 )
 from mobsf.StaticAnalyzer.views.common.pdf import pdf
 from mobsf.StaticAnalyzer.views.common.appsec import appsec_dashboard
+from mobsf.StaticAnalyzer.views.common.checklist import checklist_api
 from mobsf.StaticAnalyzer.views.windows import windows
 
 
@@ -263,6 +264,32 @@ def api_scorecard(request):
         api=True)
     if 'error' in resp:
         if resp.get('error') == 'Invalid scan hash':
+            response = make_api_response(resp, 400)
+        else:
+            response = make_api_response(resp, 500)
+    elif 'hash' in resp:
+        response = make_api_response(resp, 200)
+    elif 'not_found' in resp:
+        response = make_api_response(resp, 404)
+    else:
+        response = make_api_response(
+            {'error': 'JSON Generation Error'}, 500)
+    return response
+
+
+@request_method(['POST'])
+@csrf_exempt
+def api_checklist(request):
+    """Get MASVS, MASWE and MASTG checklists."""
+    if 'hash' not in request.POST:
+        return make_api_response(
+            {'error': 'Missing Parameters'}, 422)
+    resp = checklist_api(
+        request,
+        request.POST['hash'],
+        api=True)
+    if 'error' in resp:
+        if resp.get('error') == 'Invalid Hash':
             response = make_api_response(resp, 400)
         else:
             response = make_api_response(resp, 500)

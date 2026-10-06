@@ -4,8 +4,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
-from django.test import SimpleTestCase
+from django.conf import settings
+from django.test import SimpleTestCase, TestCase
 
+from mobsf.MobSF.init import api_key
+from mobsf.StaticAnalyzer.views.common import checklist as checklist_module
 from mobsf.StaticAnalyzer.views.common import mas_standards
 from mobsf.StaticAnalyzer.views.common.checklist import build_checklist
 
@@ -218,3 +221,119 @@ class StandardsTests(SimpleTestCase):
         self.assertEqual(req.call_args[0][1], mas_standards.SOURCE_URL)
         self.assertEqual(req.call_args[1]['allowed_ports'], (443,))
         self.assertEqual(req.call_args[1]['max_redirects'], 0)
+
+
+HASH = 'a' * 32
+SCAN_DATA = {'app_name': 'Demo', 'file_name': 'demo.apk'}
+
+
+def _patch_scan(found=True, platform='android'):
+    """Patch DB lookups so no real scan is needed."""
+    row = mock.Mock() if found else None
+    android = mock.patch.object(
+        checklist_module.StaticAnalyzerAndroid.objects, 'filter',
+        return_value=mock.Mock(first=lambda: row if platform == 'android'
+                               else None))
+    ios = mock.patch.object(
+        checklist_module.StaticAnalyzerIOS.objects, 'filter',
+        return_value=mock.Mock(first=lambda: row if platform == 'ios'
+                               else None))
+    reader = mock.patch.object(
+        checklist_module, 'adb', return_value=dict(SCAN_DATA))
+    ios_reader = mock.patch.object(
+        checklist_module, 'idb', return_value=dict(SCAN_DATA))
+    refresh = mock.patch.object(checklist_module, 'refresh_if_stale')
+    return (android, ios, reader, ios_reader, refresh)
+
+
+class ChecklistViewTests(TestCase):
+    """Web page: methods, authentication, errors and content."""
+
+    url = f'/checklist/{HASH}/'
+
+    def run_with_scan(self, func, found=True, platform='android'):
+        patches = _patch_scan(found, platform)
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        return func()
+
+    def test_post_is_rejected(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            self.assertEqual(self.client.post(self.url).status_code, 405)
+
+    def test_login_required(self):
+        with self.settings(DISABLE_AUTHENTICATION='0'):
+            response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('login', response['Location'])
+
+    def test_unknown_scan(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.run_with_scan(
+                lambda: self.client.get(self.url), found=False)
+        self.assertContains(
+            response, 'Report not found', status_code=500)
+
+    def test_android_page_shows_retrieval_info(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.run_with_scan(lambda: self.client.get(self.url))
+        self.assertContains(response, 'retrieved on')
+        self.assertContains(response, 'MASVS-STORAGE-1')
+
+    def test_ios_page(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.run_with_scan(
+                lambda: self.client.get(self.url), platform='ios')
+        self.assertEqual(response.status_code, 200)
+
+    def test_invalid_hash_not_routed(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            self.assertEqual(
+                self.client.get('/checklist/not-a-hash/').status_code, 404)
+
+
+class ChecklistApiTests(TestCase):
+    """REST API: key, parameters and response shape."""
+
+    url = '/api/v1/checklist'
+
+    def post(self, data, key=True):
+        headers = {}
+        if key:
+            headers['HTTP_X_MOBSF_API_KEY'] = api_key(settings.MOBSF_HOME)
+        return self.client.post(self.url, data, **headers)
+
+    def test_requires_api_key(self):
+        self.assertEqual(self.post({'hash': HASH}, key=False).status_code, 401)
+
+    def test_get_not_allowed(self):
+        response = self.client.get(
+            self.url, HTTP_X_MOBSF_API_KEY=api_key(settings.MOBSF_HOME))
+        self.assertEqual(response.status_code, 405)
+
+    def test_missing_hash(self):
+        self.assertEqual(self.post({}).status_code, 422)
+
+    def test_invalid_hash(self):
+        self.assertEqual(self.post({'hash': 'zz'}).status_code, 400)
+
+    def test_not_found(self):
+        patches = _patch_scan(found=False)
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.assertEqual(self.post({'hash': HASH}).status_code, 404)
+
+    def test_checklist_response(self):
+        patches = _patch_scan()
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        response = self.post({'hash': HASH})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['platform'], 'android')
+        self.assertIn('retrieved_at', body['checklist']['source'])
+        for std in ('MASVS', 'MASWE', 'MASTG'):
+            self.assertIn(std, body['checklist'])

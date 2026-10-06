@@ -169,6 +169,40 @@
     <article id="contents">
 
       
+      {% if appsec.checklist %}
+      <h2><i class="fas fa-tasks"></i> OWASP MASVS / MASWE / MASTG CHECKLIST</h2>
+      <p>
+        Source: {{ appsec.checklist.source.source }} (mas.owasp.org),
+        retrieved on {{ appsec.checklist.source.retrieved_display }}
+        {% if appsec.checklist.source.age_days != None %}({{ appsec.checklist.source.age_days }} day{{ appsec.checklist.source.age_days|pluralize }} ago){% endif %}.
+        {% if appsec.checklist.source.stale %}<strong>This data is older than {{ appsec.checklist.source.max_age_days }} days.</strong>{% endif %}
+      </p>
+      <table class="table table-bordered">
+        <thead><tr><th>Standard</th><th>Success</th><th>Failed</th><th>To be tested</th><th>N/A</th></tr></thead>
+        <tbody>
+          <tr><td>MASVS</td><td>{{ appsec.checklist.MASVS.summary.Success }}</td><td>{{ appsec.checklist.MASVS.summary.Failed }}</td><td>{{ appsec.checklist.MASVS.summary.ToBeTest }}</td><td>{{ appsec.checklist.MASVS.summary.NotApplicable }}</td></tr>
+          <tr><td>MASWE</td><td>{{ appsec.checklist.MASWE.summary.Success }}</td><td>{{ appsec.checklist.MASWE.summary.Failed }}</td><td>{{ appsec.checklist.MASWE.summary.ToBeTest }}</td><td>{{ appsec.checklist.MASWE.summary.NotApplicable }}</td></tr>
+          <tr><td>MASTG</td><td>{{ appsec.checklist.MASTG.summary.Success }}</td><td>{{ appsec.checklist.MASTG.summary.Failed }}</td><td>{{ appsec.checklist.MASTG.summary.ToBeTest }}</td><td>{{ appsec.checklist.MASTG.summary.NotApplicable }}</td></tr>
+        </tbody>
+      </table>
+      <table class="table table-bordered">
+        <thead><tr><th>MASVS control</th><th>Requirement</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for it in appsec.checklist.MASVS.items %}
+          <tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <table class="table table-bordered">
+        <thead><tr><th>MASWE weakness</th><th>Title</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for it in appsec.checklist.MASWE.items %}
+          <tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
       <h2><i class="fas fa-box-open"></i> FILE INFORMATION</h2>
 
       <h5>File Name:</h5> {{ file_name }}</br>

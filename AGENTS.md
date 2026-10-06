@@ -336,11 +336,15 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
 - MobSF rule tags are MASVS v1 (`MSTG-*`). OWASP lists them on each MASWE weakness; that is
   the crosswalk. MASTG tests are manual and are never marked Success or Failed.
 
+- Entry points: web `checklist/<md5>/`, REST `api/v1/checklist` (POST `hash`, documented in
+  `apidocs.html`), and a section in both PDF reports via `appsec.checklist`. Tests live in
+  `mobsf/StaticAnalyzer/test_checklist.py` (builder, standards, web view, API).
+
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
 1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
    Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
-2. `checklist_page` has no `@permission_required`, no REST endpoint, and no PDF report
-   section. The tests in `mobsf/StaticAnalyzer/test_checklist.py` cover the builder and
-   the standards module; there are no view or API tests yet.
+2. `checklist_page` and `api/v1/checklist` are read-only and use `@login_required` like the
+   scorecard (there is no read permission in `Permissions`). Tester actions will need a new
+   permission. `view_source`-style files are not part of the checklist yet.
 3. There is no tester workflow yet (per-scan status, notes, evidence, export).
