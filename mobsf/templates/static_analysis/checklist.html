@@ -6,7 +6,6 @@ sidebar-collapse
 {% block extra_css %}
 <style>
   .cl-row.hidden { display: none; }
-  .cl-stat { cursor: pointer; }
   .cl-bar { height: 10px; }
 </style>
 {% endblock %}
@@ -23,8 +22,21 @@ sidebar-collapse
   </section>
   <section class="content">
     <div class="container-fluid">
+      <div class="alert {% if source.stale %}alert-warning{% else %}alert-info{% endif %}">
+        <i class="fas fa-info-circle"></i>
+        Checklists are from <strong>{{ source.source }}</strong>
+        (<a href="https://mas.owasp.org/" target="_blank" rel="noopener noreferrer">mas.owasp.org</a>),
+        retrieved on <strong>{{ source.retrieved_display }}</strong>
+        {% if source.age_days != None %}({{ source.age_days }} day{{ source.age_days|pluralize }} ago){% endif %}.
+        {{ source.counts.masvs }} MASVS controls, {{ source.counts.maswe }} MASWE weaknesses, {{ source.counts.mastg }} MASTG tests.
+        {% if source.stale %}
+          <br><strong>This data is older than {{ source.max_age_days }} days.</strong>
+          MobSF refreshes it automatically when online. To refresh now run
+          <code>python manage.py update_mas_standards</code>.
+        {% endif %}
+      </div>
       <div class="row">
-        {% for std, cl in checklist.items %}
+        {% for std, cl in sections %}
         <div class="col-md-4">
           <div class="card">
             <div class="card-header"><h3 class="card-title">OWASP {{ std }}</h3></div>
@@ -48,7 +60,7 @@ sidebar-collapse
       <div class="card">
         <div class="card-header p-2">
           <ul class="nav nav-pills">
-            {% for std, cl in checklist.items %}
+            {% for std, cl in sections %}
             <li class="nav-item"><a class="nav-link {% if forloop.first %}active{% endif %}" href="#tab-{{ std }}" data-toggle="tab">{{ std }}</a></li>
             {% endfor %}
           </ul>
@@ -64,14 +76,14 @@ sidebar-collapse
           </div>
         </div>
         <div class="card-body tab-content">
-          {% for std, cl in checklist.items %}
+          {% for std, cl in sections %}
           <div class="tab-pane {% if forloop.first %}active{% endif %}" id="tab-{{ std }}">
             <table class="table table-sm table-striped">
               <thead><tr><th>ID</th><th>Title</th><th>Evidence</th><th>Status</th></tr></thead>
               <tbody>
               {% for it in cl.items %}
                 <tr class="cl-row" data-status="{{ it.status }}">
-                  <td>{{ it.id }}</td>
+                  <td>{% if it.url %}<a href="{{ it.url }}" target="_blank" rel="noopener noreferrer">{{ it.id }}</a>{% else %}{{ it.id }}{% endif %}</td>
                   <td>{{ it.title }}</td>
                   <td>{% for e in it.evidence %}<div class="small text-muted">{{ e }}</div>{% endfor %}</td>
                   <td>{% if it.status == 'Success' %}<span class="badge badge-success">Success</span>{% elif it.status == 'Failed' %}<span class="badge badge-danger">Failed</span>{% elif it.status == 'ToBeTest' %}<span class="badge badge-warning">To be tested</span>{% else %}<span class="badge badge-secondary">N/A</span>{% endif %}</td>

@@ -126,6 +126,10 @@ WINDOWS_EXTS = ('appx',)
 # In this mode, web UI related urls are disabled.
 API_ONLY = os.getenv('MOBSF_API_ONLY', '0')
 
+# Refresh OWASP MASVS/MASWE/MASTG checklists from mas.owasp.org when
+# the stored copy is older than 30 days. Set to 0 to stay offline.
+MAS_AUTO_UPDATE = os.getenv('MOBSF_MAS_AUTO_UPDATE', '1') == '1'
+
 # -----External URLS--------------------------
 MALTRAIL_DB_URL = ('https://github.com/stamparm/trails/'
                    'releases/latest/download/maltrail-malware-domains.txt')

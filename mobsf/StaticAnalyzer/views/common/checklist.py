@@ -1,13 +1,24 @@
 # -*- coding: utf_8 -*-
-"""MASVS / MASTG / MASWE checklist mapped from static analysis results.
+"""MASVS / MASWE / MASTG checklist mapped from static analysis results.
 
-Every scanned app gets three checklists. Each item is one of
-Success, Failed, ToBeTest or NotApplicable.
+Standards data comes from OWASP MAS (see ``mas_standards``). MobSF rules
+carry legacy MASVS v1 tags (``MSTG-STORAGE-2``). OWASP lists those tags on
+each MASWE weakness, which is the crosswalk used here:
 
-* Failed:  a finding tagged with the item has severity high/warning.
-* Success: a rule covering the item ran for this platform and did not fail.
-* ToBeTest: no automated rule covers the item, so it needs manual testing.
-* NotApplicable: the scan type has no checklist (e.g. APPX, JAR/AAR).
+    finding tag -> MASWE weakness -> MASVS v2 control
+
+Each item is Success, Failed, ToBeTest or NotApplicable:
+
+* Failed: a high/warning finding is tagged with the weakness.
+* Success: every legacy tag of the weakness is covered by an automated
+  rule that ran on this scan and found nothing.
+* ToBeTest: anything else, it needs a manual test. Info findings and
+  partially covered weaknesses land here.
+* NotApplicable: wrong platform for a test, or a scan type without
+  a checklist (e.g. APPX, JAR/AAR).
+
+MASTG tests are manual procedures, so they are never marked Success or
+Failed by MobSF. Their evidence points to the weakness result instead.
 """
 import re
 from enum import Enum
@@ -31,6 +42,11 @@ from mobsf.StaticAnalyzer.models import (
 )
 from mobsf.StaticAnalyzer.views.android.db_interaction import (
     get_context_from_db_entry as adb)
+from mobsf.StaticAnalyzer.views.common.mas_standards import (
+    load_standards,
+    refresh_if_stale,
+    standards_info,
+)
 from mobsf.StaticAnalyzer.views.ios.db_interaction import (
     get_context_from_db_entry as idb)
 
@@ -53,16 +69,6 @@ RULE_FILES = {
         RULES / 'ios' / 'rules' / 'ipa_rules.py',
     ],
 }
-# Requirement count per category (MASVS v1 / MASTG requirement ids)
-MSTG_COUNTS = {
-    'STORAGE': 15, 'CRYPTO': 6, 'AUTH': 12, 'NETWORK': 6,
-    'PLATFORM': 11, 'CODE': 9, 'RESILIENCE': 13,
-}
-# MASVS v2 controls per category
-MASVS_COUNTS = {
-    'STORAGE': 2, 'CRYPTO': 2, 'AUTH': 3, 'NETWORK': 2,
-    'PLATFORM': 3, 'CODE': 4, 'RESILIENCE': 4, 'PRIVACY': 4,
-}
 TAG = re.compile(
     r'\b(?:MSTG-|MASVS-)?(storage|crypto|auth|network|platform|code|'
     r'resilience)[-_ ]*(\d+)\b', re.I)
@@ -71,13 +77,14 @@ PASS_SEV = {'good', 'secure'}
 
 
 def _tags(text):
-    """Return a set of (CATEGORY, number) tags found in text."""
-    return {(c.upper(), int(n)) for c, n in TAG.findall(str(text or ''))}
+    """Return legacy requirement tags (MSTG-STORAGE-2) found in text."""
+    return {f'MSTG-{cat.upper()}-{int(num)}'
+            for cat, num in TAG.findall(str(text or ''))}
 
 
 @lru_cache(maxsize=None)
 def _tested(platform):
-    """Requirements covered by at least one automated rule."""
+    """Legacy tags covered by at least one automated rule."""
     tested = set()
     for path in RULE_FILES.get(platform, []):
         try:
@@ -90,7 +97,7 @@ def _tested(platform):
 
 
 def _walk(obj, found):
-    """Collect (tags, severity, title) from any dict with metadata.masvs."""
+    """Collect (tags, severity, title) from dicts with metadata.masvs."""
     if isinstance(obj, dict):
         meta = obj.get('metadata')
         if isinstance(meta, dict) and meta.get('masvs'):
@@ -105,123 +112,125 @@ def _walk(obj, found):
             _walk(val, found)
 
 
-def _item(std, item_id, title, status, evidence=None):
+def _item(std, item, status, evidence=None):
     return {
         'standard': std,
-        'id': item_id,
-        'title': title,
+        'id': item['id'],
+        'title': item['title'],
         'status': status.value,
         'evidence': evidence or [],
+        'url': item.get('url', ''),
     }
 
 
-def _agg(statuses):
-    if CheckStatus.FAILED in statuses:
-        return CheckStatus.FAILED
-    if CheckStatus.TO_BE_TEST in statuses:
-        return CheckStatus.TO_BE_TEST
-    if CheckStatus.SUCCESS in statuses:
-        return CheckStatus.SUCCESS
-    return CheckStatus.NOT_APPLICABLE
-
-
-def _masvs_status(cat, mastg, review, applicable):
-    """Aggregate MASTG items of a category into one status.
-
-    Failed if any test failed, ToBeTest if a finding needs review,
-    Success if automated tests ran clean, else ToBeTest.
-    """
-    if not applicable:
-        return CheckStatus.NOT_APPLICABLE
-    items = [i for i in mastg if i['id'].split('-')[1] == cat]
-    sts = {i['status'] for i in items}
-    if CheckStatus.FAILED.value in sts:
-        return CheckStatus.FAILED
-    if any(i['evidence'] for i in items):
-        return CheckStatus.TO_BE_TEST
-    if CheckStatus.SUCCESS.value in sts:
-        return CheckStatus.SUCCESS
-    return CheckStatus.TO_BE_TEST
-
-
 def summarize(items):
+    """Count items per status."""
     out = {s.value: 0 for s in CheckStatus}
     for i in items:
         out[i['status']] += 1
     return out
 
 
-def build_checklist(data, platform):
-    """Build MASVS, MASTG and MASWE checklists from a static context."""
+def _collect(data):
+    """Group finding titles by tag and severity class."""
     found = []
     _walk(data, found)
     failed, passed, review = {}, {}, {}
     for tags, sev, title in found:
+        if sev in FAIL_SEV:
+            bucket = failed
+        elif sev in PASS_SEV:
+            bucket = passed
+        else:
+            bucket = review
         for tag in tags:
-            if sev in FAIL_SEV:
-                failed.setdefault(tag, []).append(title)
-            elif sev in PASS_SEV:
-                passed.setdefault(tag, []).append(title)
-            else:
-                review.setdefault(tag, []).append(title)
-    tested = _tested(platform)
+            bucket.setdefault(tag, []).append(title)
+    return failed, passed, review
+
+
+def _maswe_status(weak, tested, failed, passed, review):
+    """Return (status, evidence) for one weakness."""
+    tags = weak['masvs_v1']
+    hits = [t for t in tags if t in failed]
+    if hits:
+        titles = [x for t in hits for x in failed[t]]
+        return CheckStatus.FAILED, list(dict.fromkeys(titles))
+    notes = [x for t in tags for x in review.get(t, [])]
+    covered = bool(tags) and all(
+        t in tested or t in passed for t in tags)
+    if covered and not notes:
+        return CheckStatus.SUCCESS, []
+    return CheckStatus.TO_BE_TEST, list(dict.fromkeys(notes))
+
+
+def _masvs_status(weaknesses, maswe_status):
+    """Aggregate the weaknesses of a control into one status."""
+    sts = [maswe_status[w] for w in weaknesses if w in maswe_status]
+    if CheckStatus.FAILED in sts:
+        return CheckStatus.FAILED
+    if sts and all(s == CheckStatus.SUCCESS for s in sts):
+        return CheckStatus.SUCCESS
+    return CheckStatus.TO_BE_TEST
+
+
+def build_checklist(data, platform, standards=None):
+    """Build MASVS, MASWE and MASTG checklists from a static context."""
+    standards = standards or load_standards()
     applicable = platform in RULE_FILES
+    failed, passed, review = _collect(data)
+    tested = _tested(platform)
+    na = CheckStatus.NOT_APPLICABLE
 
-    def status_of(tag):
-        if not applicable:
-            return CheckStatus.NOT_APPLICABLE
-        if tag in failed:
-            return CheckStatus.FAILED
-        if tag in review and tag not in passed:
-            return CheckStatus.TO_BE_TEST
-        if tag in tested or tag in passed:
-            return CheckStatus.SUCCESS
-        return CheckStatus.TO_BE_TEST
+    maswe_items, maswe_status, maswe_ev = [], {}, {}
+    for weak in standards['maswe']:
+        if applicable:
+            status, ev = _maswe_status(weak, tested, failed, passed, review)
+        else:
+            status, ev = na, []
+        maswe_status[weak['id']] = status
+        maswe_ev[weak['id']] = ev
+        maswe_items.append(_item('MASWE', weak, status, ev))
 
-    # MASTG: one item per requirement id
-    mastg = []
-    for cat, count in MSTG_COUNTS.items():
-        for num in range(1, count + 1):
-            tag = (cat, num)
-            mastg.append(_item(
-                'MASTG', f'MSTG-{cat}-{num}', f'{cat.title()} {num}',
-                status_of(tag),
-                failed.get(tag) or review.get(tag)))
+    masvs_items = []
+    for ctl in standards['masvs']:
+        # Union of the control's own list and weaknesses mapping to it
+        weaknesses = list(dict.fromkeys(ctl['weaknesses'] + [
+            w['id'] for w in standards['maswe']
+            if ctl['id'] in w['masvs_v2']]))
+        status = _masvs_status(weaknesses, maswe_status) if applicable else na
+        related = [w for w in weaknesses
+                   if maswe_status.get(w) == CheckStatus.FAILED]
+        masvs_items.append(_item('MASVS', ctl, status, related))
 
-    # MASVS v2: one item per category control, aggregated from MASTG items
-    masvs = []
-    for cat, count in MASVS_COUNTS.items():
-        status = _masvs_status(cat, mastg, review, applicable)
-        for num in range(1, count + 1):
-            masvs.append(_item(
-                'MASVS', f'MASVS-{cat}-{num}', f'{cat.title()} {num}',
-                status))
-
-    # MASWE: each distinct failing weakness, plus per-category coverage
-    maswe = []
-    for (cat, num), titles in sorted(failed.items()):
-        for title in dict.fromkeys(titles):
-            maswe.append(_item(
-                'MASWE', f'MASWE-{cat}', title, CheckStatus.FAILED,
-                [f'MSTG-{cat}-{num}']))
-    for cat in MSTG_COUNTS:
-        if not any(i['standard'] == 'MASWE' and i['id'] == f'MASWE-{cat}'
-                   for i in maswe):
-            maswe.append(_item(
-                'MASWE', f'MASWE-{cat}', f'{cat.title()} weaknesses',
-                _masvs_status(cat, mastg, review, applicable)))
+    parent = {}
+    for weak in standards['maswe']:
+        for test in weak['tests']:
+            parent.setdefault(test, []).append(weak['id'])
+    mastg_items = []
+    for test in standards['mastg']:
+        if test['deprecated']:
+            continue
+        if not applicable or test['platform'] != platform:
+            status, ev = na, []
+        else:
+            status = CheckStatus.TO_BE_TEST
+            ev = [f'{w} {maswe_status[w].value} in automated scan'
+                  for w in parent.get(test['id'], [])
+                  if maswe_status.get(w) == CheckStatus.FAILED]
+        mastg_items.append(_item('MASTG', test, status, ev))
 
     return {
-        'MASVS': {'items': masvs, 'summary': summarize(masvs)},
-        'MASTG': {'items': mastg, 'summary': summarize(mastg)},
-        'MASWE': {'items': maswe, 'summary': summarize(maswe)},
+        'source': standards_info(standards),
+        'MASVS': {'items': masvs_items, 'summary': summarize(masvs_items)},
+        'MASWE': {'items': maswe_items, 'summary': summarize(maswe_items)},
+        'MASTG': {'items': mastg_items, 'summary': summarize(mastg_items)},
     }
 
 
 @login_required
 @require_http_methods(['GET'])
 def checklist_page(request, checksum, api=False):
-    """Dedicated MASVS/MASTG/MASWE checklist page for a scanned app."""
+    """Dedicated MASVS/MASWE/MASTG checklist page for a scanned app."""
     if not is_md5(checksum):
         return print_n_send_error_response(request, 'Invalid Hash', api)
     android = StaticAnalyzerAndroid.objects.filter(MD5=checksum).first()
@@ -235,10 +244,14 @@ def checklist_page(request, checksum, api=False):
         if api:
             return {'not_found': msg}
         return print_n_send_error_response(request, msg, api)
+    refresh_if_stale()
     checklist = build_checklist(data, platform)
+    sections = [(n, checklist[n]) for n in ('MASVS', 'MASWE', 'MASTG')]
     context = {
         'checklist': checklist,
-        'summary': {k: v['summary'] for k, v in checklist.items()},
+        'sections': sections,
+        'source': checklist['source'],
+        'summary': {n: c['summary'] for n, c in sections},
         'platform': platform,
         'hash': checksum,
         'file_name': data.get('file_name', ''),

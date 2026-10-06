@@ -322,13 +322,25 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
 - Run `tox -e lint` before every commit. It runs `autopep8` in place, then flake8 with
   single-quote, 88-column, import-order and trailing-comma rules.
 
-### Known Gaps On The Current Branch (remove each item when fixed)
-
-1. `build_checklist` uses MASVS v1 requirement counts (`MSTG_COUNTS`) and fabricated
-   `MASWE-<CATEGORY>` ids, marks items `Success` when a rule exists (`_tested` greps the
-   rule files line by line for `masvs`), and gives every control in a category the same
-   status. See Standards Correctness.
-2. `checklist_page` has no `@permission_required`, no REST endpoint, and no PDF report
-   section. The tests in `mobsf/StaticAnalyzer/test_checklist.py` cover only
-   `build_checklist`; there are no view or API tests yet.
-3. There is no tester workflow yet (per-scan status, notes, evidence, export).
+### Standards Data And Freshness
+
+- `views/common/mas_standards.py` parses the mas.owasp.org search index
+  (MASVS controls, MASWE weaknesses, MASTG tests) and stores it with `retrieved_at`.
+  A bundled snapshot lives in `StaticAnalyzer/mas_data/mas_standards.json`; a newer copy
+  under `MOBSF_HOME/mas/` wins. The checklist page shows when the data was retrieved.
+- Data older than 30 days is refreshed in the background (once a day at most) unless
+  `MOBSF_MAS_AUTO_UPDATE=0`. Refresh by hand with `python manage.py update_mas_standards`.
+  Downloads use the fixed URL through `safe_request` (https only, no redirects, size cap).
+- Regenerate the bundled snapshot with `update_mas_standards` and copy the file from
+  `MOBSF_HOME/mas/` when cutting a release.
+- MobSF rule tags are MASVS v1 (`MSTG-*`). OWASP lists them on each MASWE weakness; that is
+  the crosswalk. MASTG tests are manual and are never marked Success or Failed.
+
+### Known Gaps On The Current Branch (remove each item when fixed)
+
+1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
+   Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
+2. `checklist_page` has no `@permission_required`, no REST endpoint, and no PDF report
+   section. The tests in `mobsf/StaticAnalyzer/test_checklist.py` cover the builder and
+   the standards module; there are no view or API tests yet.
+3. There is no tester workflow yet (per-scan status, notes, evidence, export).
