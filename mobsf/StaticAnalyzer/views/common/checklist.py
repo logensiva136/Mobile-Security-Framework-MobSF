@@ -96,7 +96,10 @@ class CheckStatus(Enum):
 
 RULES = Path(__file__).resolve().parents[1]
 RULE_FILES = {
-    'android': [RULES / 'android' / 'rules' / 'android_rules.yaml'],
+    'android': [
+        RULES / 'android' / 'rules' / 'android_rules.yaml',
+        RULES / 'android' / 'rules' / 'android_apis.yaml',
+    ],
     'ios': [
         RULES / 'ios' / 'rules' / 'objective_c_rules.yaml',
         RULES / 'ios' / 'rules' / 'swift_rules.yaml',
@@ -107,6 +110,7 @@ TAG = re.compile(
     r'\b(?:MSTG-|MASVS-)?(storage|crypto|auth|network|platform|code|'
     r'resilience)[-_ ]*(\d+)\b', re.I)
 CWE = re.compile(r'cwe-?(\d+)', re.I)
+MASWE_ID = re.compile(r'MASWE-\d{4}')
 FAIL_SEV = {'high', 'warning'}
 PASS_SEV = {'good', 'secure'}
 
@@ -114,6 +118,11 @@ PASS_SEV = {'good', 'secure'}
 def _cwe_tags(text):
     """Return CWE ids (CWE-295) found in text."""
     return {f'CWE-{num}' for num in CWE.findall(str(text or ''))}
+
+
+def _maswe_tags(text):
+    """Return MASWE ids a rule explicitly evidences."""
+    return set(MASWE_ID.findall(str(text or '')))
 
 
 def _tags(text):
@@ -133,6 +142,8 @@ def _tested(platform):
                     tested |= _tags(line)
                 if 'cwe' in line.lower():
                     tested |= _cwe_tags(line)
+                if 'maswe' in line.lower():
+                    tested |= _maswe_tags(line)
         except OSError:
             continue
     return tested
@@ -143,10 +154,12 @@ def _walk(obj, found):
     if isinstance(obj, dict):
         meta = obj.get('metadata')
         if isinstance(meta, dict) and (
-                meta.get('masvs') or meta.get('cwe')):
+                meta.get('masvs') or meta.get('cwe')
+                or meta.get('maswe')):
             found.append((
                 _tags(meta.get('masvs'))
-                | _cwe_tags(meta.get('cwe')),
+                | _cwe_tags(meta.get('cwe'))
+                | _maswe_tags(meta.get('maswe')),
                 str(meta.get('severity', '')).lower(),
                 meta.get('description') or meta.get('title') or ''))
         for val in obj.values():
@@ -210,10 +223,14 @@ def _collect(data):
 def _maswe_status(weak, tested, failed, passed, review):
     """Return (status, evidence) for one weakness.
 
-    Weaknesses with legacy MSTG tags are matched by those tags. The others
-    fall back to the CWE ids OWASP lists on the weakness.
+    A rule that names the weakness itself (``maswe`` metadata) decides it.
+    Otherwise legacy MSTG tags are used, and for weaknesses without them
+    the CWE ids OWASP lists on the weakness.
     """
-    tags = weak['masvs_v1'] or weak.get('cwe', [])
+    if weak['id'] in tested:
+        tags = [weak['id']]
+    else:
+        tags = weak['masvs_v1'] or weak.get('cwe', [])
     hits = [t for t in tags if t in failed]
     if hits:
         titles = [f'{x} ({t})' if t.startswith('CWE') else x

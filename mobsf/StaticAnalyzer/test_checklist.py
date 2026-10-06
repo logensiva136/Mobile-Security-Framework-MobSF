@@ -36,6 +36,9 @@ FIXTURE = {
         {'id': 'MASWE-0018', 'title': 'Missing authz',
          'category': 'MASVS-AUTH', 'masvs_v1': ['MSTG-AUTH-3'],
          'masvs_v2': ['MASVS-AUTH-1'], 'tests': [], 'url': ''},
+        {'id': 'MASWE-0049', 'title': 'Unsafe dynamic code loading',
+         'category': 'MASVS-CODE', 'masvs_v1': [],
+         'masvs_v2': [], 'cwe': ['CWE-494'], 'tests': [], 'url': ''},
         {'id': 'MASWE-0098', 'title': 'Certificate validation',
          'category': 'MASVS-NETWORK', 'masvs_v1': [],
          'masvs_v2': [], 'cwe': ['CWE-295'], 'tests': [], 'url': ''},
@@ -55,6 +58,20 @@ FIXTURE = {
          'deprecated': True, 'url': ''},
     ],
 }
+
+
+def _ctx_maswe(maswe, sev):
+    return {
+        'android_api': {
+            'api_dexloading': {
+                'metadata': {
+                    'maswe': maswe,
+                    'severity': sev,
+                    'description': 'Dynamic Class and Dexloading',
+                },
+            },
+        },
+    }
 
 
 def _ctx_cwe(cwe, sev):
@@ -169,11 +186,45 @@ class ChecklistTests(SimpleTestCase):
                     if i['id'] == 'MASWE-0099')
         self.assertEqual(item['status'], 'ToBeTest')
 
+    def test_rule_naming_weakness_decides_it(self):
+        clean = self.build({})
+        self.assertEqual(
+            self.status(clean, 'MASWE', 'MASWE-0049'), 'Success')
+        used = self.build(_ctx_maswe('MASWE-0049', 'info'))
+        item = next(i for i in used['MASWE']['items']
+                    if i['id'] == 'MASWE-0049')
+        self.assertEqual(item['status'], 'ToBeTest')
+        self.assertEqual(item['evidence'], ['Dynamic Class and Dexloading'])
+        bad = self.build(_ctx_maswe('MASWE-0049', 'high'))
+        self.assertEqual(self.status(bad, 'MASWE', 'MASWE-0049'), 'Failed')
+
+    def test_rule_naming_weakness_ignored_on_other_platform(self):
+        ios = self.build({}, 'ios')
+        self.assertEqual(self.status(ios, 'MASWE', 'MASWE-0049'), 'ToBeTest')
+
     def test_source_info_included(self):
         cl = self.build({})
         self.assertEqual(cl['source']['source'], 'OWASP MAS')
         self.assertFalse(cl['source']['stale'])
         self.assertEqual(cl['source']['age_days'], 0)
+
+
+class RuleTagTests(SimpleTestCase):
+    """Rule files only reference real OWASP weakness ids."""
+
+    def test_maswe_tags_in_rules_exist_in_standards(self):
+        with open(mas_standards.SNAPSHOT, encoding='utf-8') as fp:
+            known = {w['id'] for w in json.load(fp)['maswe']}
+        used = set()
+        for paths in checklist_module.RULE_FILES.values():
+            for path in paths:
+                used |= checklist_module._maswe_tags(
+                    '\n'.join(
+                        line for line in path.read_text(
+                            encoding='utf-8').splitlines()
+                        if 'maswe' in line.lower()))
+        self.assertTrue(used)
+        self.assertEqual(used - known, set())
 
 
 class StandardsTests(SimpleTestCase):

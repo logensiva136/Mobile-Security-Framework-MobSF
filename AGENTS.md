@@ -364,14 +364,20 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   the `cwe` metadata of MobSF rules. `meta.schema` in the data file is bumped whenever the
   parsed fields change; copies with an older schema are ignored in favour of the bundled
   snapshot.
+- Rule tags: a rule can name the weakness it evidences with `metadata: maswe: MASWE-0049`
+  (real OWASP id; a test fails on unknown ids). A tagged rule decides that weakness: no
+  hit means Success, an `info` hit means `ToBeTest` with the finding as evidence, a
+  `high`/`warning` hit means Failed. Only tag a rule when the weakness cannot occur
+  without the API or pattern the rule looks for, otherwise "nothing found" is a false
+  assurance. `android_apis.yaml` and `android_rules.yaml` are both read for coverage.
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
-1. Automation is limited by the rules, not by the mapping. MobSF rules cover only about 16
-   distinct CWEs on Android and 15 on iOS, so most weaknesses stay `ToBeTest` however clean
-   the app is. The CWE fallback lets 5 more Android and 4 more iOS weaknesses fail and
-   1 Android weakness succeed. Raising coverage means adding rules (with `cwe` and `masvs`
-   metadata) for uncovered weaknesses, not changing `checklist.py`.
+1. Automation is limited by the rules. Eleven Android API rules are tagged with a `maswe`
+   id (MASWE-0030, 0032, 0035, 0037, 0049); most other weaknesses stay `ToBeTest`. Next:
+   tag or write rules for more weaknesses where the absence of an API proves the weakness
+   cannot occur, and do the same for iOS (`ios_apis.yaml`, `swift_rules.yaml`). Rules only
+   see decompiled sources, so obfuscated or native code can hide a hit.
 2. Evidence is not virus scanned and there is no per-scan storage quota. There is no
    assignment of items to testers or "my items" filter yet. Evidence file contents are not
    embedded in the PDF (names only).

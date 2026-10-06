@@ -30,6 +30,8 @@
     - InMemoryDexClassLoader\(
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0049
 - id: api_java_reflection
   message: Java Reflection
   type: RegexOr
@@ -60,6 +62,8 @@
     - startActivityForResult\(
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0032
 - id: api_start_service
   message: Starting Service
   type: RegexOr
@@ -68,6 +72,8 @@
     - bindService\(
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0032
 - id: api_send_broadcast
   message: Sending Broadcast
   type: RegexOr
@@ -77,6 +83,8 @@
     - sendStickyBroadcast\(
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0032
 - id: api_local_file_io
   message: Local File I/O Operations
   type: RegexOr
@@ -131,6 +139,8 @@
     - loadDex|loadClass|DexClassLoader|loadDexFile
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0049
 - id: api_content_provider
   message: Content Provider
   type: Regex
@@ -210,6 +220,8 @@
     - android\.webkit
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_webview_get
   message: WebView GET Request
   type: RegexAnd
@@ -219,6 +231,8 @@
     - android\.webkit
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_webview_post
   message: WebView POST Request
   type: RegexAnd
@@ -228,6 +242,8 @@
     - android\.webkit
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_notifications
   message: Android Notifications
   type: RegexAnd
@@ -236,6 +252,8 @@
     - notify
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0037
 - id: api_get_cell
   message: Get Cell Information
   type: RegexAnd
@@ -373,6 +391,8 @@
       - ClipboardManager
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0030
 - id: api_base64_encode
   message: Base64 Encode
   type: RegexAndOr
@@ -465,6 +485,8 @@
   pattern: \@JavascriptInterface|\@android\.webkit\.JavascriptInterface
   input_case: exact
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_passkeys
   message: Passkeys
   type: Regex
