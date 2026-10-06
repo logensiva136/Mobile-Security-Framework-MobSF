@@ -37,6 +37,7 @@ from mobsf.StaticAnalyzer.views.common.pdf import pdf
 from mobsf.StaticAnalyzer.views.common.appsec import appsec_dashboard
 from mobsf.StaticAnalyzer.views.common.checklist import (
     checklist_api,
+    checklist_assign,
     checklist_review,
 )
 from mobsf.StaticAnalyzer.views.common.checklist_evidence import (
@@ -324,6 +325,17 @@ def api_checklist_review(request):
         return make_api_response(
             {'error': 'Missing Parameters'}, 422)
     return _forward(checklist_review(
+        request, request.POST['hash'], api=True))
+
+
+@request_method(['POST'])
+@csrf_exempt
+def api_checklist_assign(request):
+    """Assign a checklist item to a tester."""
+    if 'hash' not in request.POST:
+        return make_api_response(
+            {'error': 'Missing Parameters'}, 422)
+    return _forward(checklist_assign(
         request, request.POST['hash'], api=True))
 
 

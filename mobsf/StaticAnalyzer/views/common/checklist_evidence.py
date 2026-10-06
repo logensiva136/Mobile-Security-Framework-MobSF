@@ -10,6 +10,7 @@ import logging
 import uuid
 from pathlib import Path
 
+from django.db.models import Sum
 from django.http import FileResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -45,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 MAX_EVIDENCE_BYTES = 5 * 1024 * 1024
 MAX_FILES_PER_ITEM = 10
+MAX_SCAN_EVIDENCE_BYTES = 50 * 1024 * 1024
 MAX_NAME_LENGTH = 100
 ALLOWED_TYPES = {
     'png': 'image/png',
@@ -128,12 +130,16 @@ def checklist_evidence_upload(request, checksum, api=False):
         MD5=checksum, STANDARD=std, ITEM_ID=item_id).count()
     if existing >= MAX_FILES_PER_ITEM:
         return _error('Too many evidence files for this item')
+    used = ChecklistEvidence.objects.filter(
+        MD5=checksum).aggregate(total=Sum('SIZE'))['total'] or 0
     upload = form.cleaned_data['file']
     if upload.size > MAX_EVIDENCE_BYTES:
         return _error('File is too large')
     content = upload.read(MAX_EVIDENCE_BYTES + 1)
     if len(content) > MAX_EVIDENCE_BYTES:
         return _error('File is too large')
+    if used + len(content) > MAX_SCAN_EVIDENCE_BYTES:
+        return _error('Evidence storage limit reached for this scan')
     try:
         ext = validate_upload(upload.name, content)
     except ValueError as exp:

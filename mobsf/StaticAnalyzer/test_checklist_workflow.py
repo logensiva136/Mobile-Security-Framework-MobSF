@@ -5,11 +5,13 @@ from pathlib import Path
 from unittest import mock
 
 from django.conf import settings
+from django.contrib.auth.models import Permission, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from mobsf.MobSF.init import api_key
 from mobsf.StaticAnalyzer.models import (
+    ChecklistAssignment,
     ChecklistEvidence,
     ChecklistReview,
     ChecklistReviewLog,
@@ -193,3 +195,86 @@ class ScorecardTests(WorkflowBase):
         self.assertEqual(item['status'], 'Success')
         self.assertEqual(item['review']['reviewer'], 'tester')
         self.assertEqual(item['files'][0]['name'], 'proof.png')
+
+
+class AssignmentTests(WorkflowBase):
+    """Assigning checklist items to testers."""
+
+    base = f'/checklist/{HASH}'
+
+    def assign(self, assignee='alice', **fields):
+        data = dict(ITEM, assignee=assignee)
+        data.update(fields)
+        return self.client.post(f'{self.base}/assign/', data)
+
+    def test_assign_change_and_clear(self):
+        self.assertEqual(self.assign().status_code, 200)
+        self.assertEqual(ChecklistAssignment.objects.get().ASSIGNEE, 'alice')
+        self.assign('bob')
+        self.assertEqual(ChecklistAssignment.objects.count(), 1)
+        self.assertEqual(ChecklistAssignment.objects.get().ASSIGNEE, 'bob')
+        self.assertEqual(self.assign('').status_code, 200)
+        self.assertEqual(ChecklistAssignment.objects.count(), 0)
+        history = self.client.get(
+            f'{self.base}/history/', ITEM).json()['history']
+        self.assertEqual(
+            [h['action'] for h in history],
+            ['unassign', 'assign', 'assign'])
+
+    def test_validation(self):
+        self.assertEqual(self.assign('bad name!').status_code, 400)
+        self.assertEqual(self.assign('x' * 40).status_code, 400)
+        self.assertEqual(self.assign(standard='X').status_code, 400)
+        self.assertEqual(self.assign(item_id='MASWE-7777').status_code, 400)
+        self.assertEqual(
+            self.client.get(f'{self.base}/assign/').status_code, 405)
+        self.assertEqual(ChecklistAssignment.objects.count(), 0)
+
+    def test_assignee_must_be_a_user_when_auth_is_on(self):
+        User.objects.create_user('alice', password='pw-for-test-3')
+        User.objects.create_user('lead', password='pw-for-test-4')
+        lead = User.objects.get(username='lead')
+        lead.user_permissions.add(
+            Permission.objects.get(codename='can_review'))
+        with self.settings(DISABLE_AUTHENTICATION='0'):
+            self.client.login(username='lead', password='pw-for-test-4')
+            self.assertEqual(self.assign('ghost').status_code, 400)
+            self.assertEqual(self.assign('alice').status_code, 200)
+        row = ChecklistAssignment.objects.get()
+        self.assertEqual((row.ASSIGNEE, row.ASSIGNED_BY), ('alice', 'lead'))
+
+    def test_requires_permission(self):
+        with self.settings(DISABLE_AUTHENTICATION='0'):
+            self.assertEqual(self.assign().status_code, 302)
+            User.objects.create_user('viewer', password='pw-for-test-5')
+            self.client.login(username='viewer', password='pw-for-test-5')
+            self.assertEqual(self.assign().status_code, 403)
+
+    def test_shown_in_page_api_and_export(self):
+        self.assign('alice')
+        page = self.client.get(f'{self.base}/')
+        self.assertContains(page, 'Assigned to alice')
+        self.assertContains(page, 'cl-assign-filter')
+        export = self.client.get(f'{self.base}/export/', {'format': 'csv'})
+        self.assertIn(',alice,', export.content.decode())
+        listing = self.client.post(
+            '/api/v1/checklist', {'hash': HASH},
+            HTTP_X_MOBSF_API_KEY=api_key(settings.MOBSF_HOME))
+        item = next(
+            i for i in listing.json()['checklist']['MASWE']['items']
+            if i['id'] == 'MASWE-0099')
+        self.assertEqual(item['assignee'], 'alice')
+
+    def test_api_and_cleanup(self):
+        response = self.client.post(
+            '/api/v1/checklist_assign',
+            dict(ITEM, hash=HASH, assignee='carol'),
+            HTTP_X_MOBSF_API_KEY=api_key(settings.MOBSF_HOME))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ChecklistAssignment.objects.get().ASSIGNED_BY, 'api')
+        self.assertEqual(self.client.post(
+            '/api/v1/checklist_assign', {},
+            HTTP_X_MOBSF_API_KEY=api_key(settings.MOBSF_HOME)).status_code,
+            422)
+        delete_checklist_data(HASH)
+        self.assertEqual(ChecklistAssignment.objects.count(), 0)

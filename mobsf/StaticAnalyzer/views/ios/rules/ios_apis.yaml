@@ -16,6 +16,8 @@
   pattern: UIWebView|WKWebView
   type: Regex
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_safari_view
   message: SFSafariViewController Componaent
   input_case: exact
@@ -36,6 +38,8 @@
     - webView
   type: RegexAnd
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_webview_load_string
   message: WebView Load HTML String
   input_case: exact
@@ -44,6 +48,8 @@
     - webView
   type: RegexAnd
   severity: info
+  metadata:
+    maswe: MASWE-0035
 - id: api_cookie
   message: Cookie Storage
   input_case: exact
@@ -58,6 +64,8 @@
   pattern: UIPasteboard
   type: Regex
   severity: info
+  metadata:
+    maswe: MASWE-0030
 - id: api_userdefaults
   message: UserDefaults
   input_case: exact

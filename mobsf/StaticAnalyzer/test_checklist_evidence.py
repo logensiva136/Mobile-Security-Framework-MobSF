@@ -131,6 +131,14 @@ class EvidenceEndpointTests(TestCase):
             self.assertEqual(self.upload().status_code, 400)
         self.assertEqual(ChecklistEvidence.objects.count(), 2)
 
+    def test_scan_storage_quota(self):
+        with mock.patch.object(
+                checklist_evidence, 'MAX_SCAN_EVIDENCE_BYTES', 100):
+            self.assertEqual(self.upload().status_code, 200)
+            self.assertEqual(self.upload().status_code, 200)
+            self.assertEqual(self.upload().status_code, 400)
+        self.assertEqual(ChecklistEvidence.objects.count(), 2)
+
     def test_methods(self):
         self.assertEqual(self.client.get(self.base).status_code, 405)
         self.upload()

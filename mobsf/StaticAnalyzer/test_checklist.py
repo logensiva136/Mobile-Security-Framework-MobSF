@@ -36,6 +36,10 @@ FIXTURE = {
         {'id': 'MASWE-0018', 'title': 'Missing authz',
          'category': 'MASVS-AUTH', 'masvs_v1': ['MSTG-AUTH-3'],
          'masvs_v2': ['MASVS-AUTH-1'], 'tests': [], 'url': ''},
+        {'id': 'MASWE-0030', 'title': 'Improper clipboard use',
+         'category': 'MASVS-PLATFORM', 'masvs_v1': [],
+         'masvs_v2': [], 'cwe': ['CWE-200', 'CWE-668'],
+         'tests': [], 'url': ''},
         {'id': 'MASWE-0049', 'title': 'Unsafe dynamic code loading',
          'category': 'MASVS-CODE', 'masvs_v1': [],
          'masvs_v2': [], 'cwe': ['CWE-494'], 'tests': [], 'url': ''},
@@ -201,6 +205,20 @@ class ChecklistTests(SimpleTestCase):
     def test_rule_naming_weakness_ignored_on_other_platform(self):
         ios = self.build({}, 'ios')
         self.assertEqual(self.status(ios, 'MASWE', 'MASWE-0049'), 'ToBeTest')
+
+    def test_ios_api_rules_count_only_for_source_scans(self):
+        zip_scan = {'file_name': 'App.zip'}
+        ipa_scan = {'file_name': 'App.ipa'}
+        source = self.build(zip_scan, 'ios')
+        binary = self.build(ipa_scan, 'ios')
+        self.assertEqual(
+            self.status(source, 'MASWE', 'MASWE-0030'), 'Success')
+        self.assertEqual(
+            self.status(binary, 'MASWE', 'MASWE-0030'), 'ToBeTest')
+
+    def test_android_api_rules_count_for_apk(self):
+        cl = self.build({'file_name': 'app.apk'}, 'android')
+        self.assertEqual(self.status(cl, 'MASWE', 'MASWE-0030'), 'Success')
 
     def test_source_info_included(self):
         cl = self.build({})

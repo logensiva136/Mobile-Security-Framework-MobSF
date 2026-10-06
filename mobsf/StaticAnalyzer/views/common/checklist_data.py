@@ -7,6 +7,7 @@ from pathlib import Path
 from django.conf import settings
 
 from mobsf.StaticAnalyzer.models import (
+    ChecklistAssignment,
     ChecklistEvidence,
     ChecklistReview,
     ChecklistReviewLog,
@@ -30,6 +31,7 @@ def delete_checklist_data(checksum):
     ChecklistReview.objects.filter(MD5=checksum).delete()
     ChecklistEvidence.objects.filter(MD5=checksum).delete()
     ChecklistReviewLog.objects.filter(MD5=checksum).delete()
+    ChecklistAssignment.objects.filter(MD5=checksum).delete()
     scan_dir = evidence_dir(checksum)
     if scan_dir.is_dir() and not scan_dir.is_symlink():
         shutil.rmtree(scan_dir, ignore_errors=True)

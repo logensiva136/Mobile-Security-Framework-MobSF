@@ -33,6 +33,8 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 
+from django.conf import settings as django_settings
+from django.contrib.auth import get_user_model
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -57,11 +59,13 @@ from mobsf.MobSF.views.authorization import (
     permission_required,
 )
 from mobsf.StaticAnalyzer.forms import (
+    ChecklistAssignForm,
     ChecklistExportForm,
     ChecklistItemForm,
     ChecklistReviewForm,
 )
 from mobsf.StaticAnalyzer.models import (
+    ChecklistAssignment,
     ChecklistEvidence,
     ChecklistReview,
     ChecklistReviewLog,
@@ -106,6 +110,10 @@ RULE_FILES = {
         RULES / 'ios' / 'rules' / 'ipa_rules.py',
     ],
 }
+# API rules that only run on source (zip) scans, not on IPA binaries
+SOURCE_RULE_FILES = {
+    'ios': [RULES / 'ios' / 'rules' / 'ios_apis.yaml'],
+}
 TAG = re.compile(
     r'\b(?:MSTG-|MASVS-)?(storage|crypto|auth|network|platform|code|'
     r'resilience)[-_ ]*(\d+)\b', re.I)
@@ -132,10 +140,13 @@ def _tags(text):
 
 
 @lru_cache(maxsize=None)
-def _tested(platform):
-    """Legacy tags covered by at least one automated rule."""
+def _tested(platform, source=False):
+    """Tags covered by at least one automated rule for this scan type."""
     tested = set()
-    for path in RULE_FILES.get(platform, []):
+    files = list(RULE_FILES.get(platform, []))
+    if source:
+        files += SOURCE_RULE_FILES.get(platform, [])
+    for path in files:
         try:
             for line in path.read_text(encoding='utf-8').splitlines():
                 if 'masvs' in line.lower():
@@ -180,13 +191,15 @@ def _item(std, item, status, evidence=None):
         'url': item.get('url', ''),
         'review': None,
         'files': [],
+        'assignee': '',
     }
 
 
-def _with_review(item, reviews, files=None):
+def _with_review(item, reviews, files=None, assignments=None):
     """Apply a tester decision, never hiding an automated Failed."""
     key = (item['standard'], item['id'])
     item['files'] = (files or {}).get(key, [])
+    item['assignee'] = (assignments or {}).get(key, '')
     review = (reviews or {}).get(key)
     if review:
         item['review'] = review
@@ -255,16 +268,19 @@ def _masvs_status(weaknesses, maswe_status):
 
 
 def build_checklist(
-        data, platform, standards=None, reviews=None, files=None):
+        data, platform, standards=None, reviews=None, files=None,
+        assignments=None):
     """Build MASVS, MASWE and MASTG checklists from a static context.
 
     reviews maps (standard, item id) to a tester decision dict and
-    files maps it to the list of attached evidence files.
+    files maps it to the list of attached evidence files and
+    assignments maps it to the username it is assigned to.
     """
     standards = standards or load_standards()
     applicable = platform in RULE_FILES
     failed, passed, review = _collect(data)
-    tested = _tested(platform)
+    source = str(data.get('file_name', '')).lower().endswith('.zip')
+    tested = _tested(platform, source)
     na = CheckStatus.NOT_APPLICABLE
 
     maswe_items, maswe_status = [], {}
@@ -274,7 +290,7 @@ def build_checklist(
         else:
             status, ev = na, []
         item = _with_review(
-            _item('MASWE', weak, status, ev), reviews, files)
+            _item('MASWE', weak, status, ev), reviews, files, assignments)
         maswe_status[weak['id']] = CheckStatus(item['status'])
         maswe_items.append(item)
 
@@ -289,7 +305,7 @@ def build_checklist(
                    if maswe_status.get(w) == CheckStatus.FAILED]
         masvs_items.append(
             _with_review(
-                _item('MASVS', ctl, status, related), reviews, files))
+                _item('MASVS', ctl, status, related), reviews, files, assignments))
 
     parent = {}
     for weak in standards['maswe']:
@@ -308,7 +324,7 @@ def build_checklist(
                   if maswe_status.get(w) == CheckStatus.FAILED]
         mastg_items.append(
             _with_review(
-                _item('MASTG', test, status, ev), reviews, files))
+                _item('MASTG', test, status, ev), reviews, files, assignments))
 
     return {
         'source': standards_info(standards),
@@ -342,6 +358,14 @@ def load_reviews(checksum):
     }
 
 
+def load_assignments(checksum):
+    """Return assignees keyed by (standard, item id)."""
+    return {
+        (a.STANDARD, a.ITEM_ID): a.ASSIGNEE
+        for a in ChecklistAssignment.objects.filter(MD5=checksum)
+    }
+
+
 def load_files(checksum):
     """Return evidence file details keyed by (standard, item id)."""
     files = {}
@@ -369,7 +393,8 @@ def _checklist_response(request, checksum, api):
     refresh_if_stale()
     checklist = build_checklist(
         data, platform, reviews=load_reviews(checksum),
-        files=load_files(checksum))
+        files=load_files(checksum),
+        assignments=load_assignments(checksum))
     if api:
         return {
             'hash': checksum,
@@ -387,6 +412,8 @@ def _checklist_response(request, checksum, api):
         'platform': platform,
         'can_review': has_permission(
             request, Permissions.REVIEW, False),
+        'current_user': (request.user.get_username()
+                         if request.user.is_authenticated else ''),
         'hash': checksum,
         'file_name': data.get('file_name', ''),
         'app_name': data.get('app_name', ''),
@@ -473,7 +500,8 @@ def _export_csv(checklist):
     writer = csv.writer(out)
     writer.writerow([
         'standard', 'id', 'title', 'status', 'automated_status',
-        'evidence', 'files', 'reviewer', 'reviewed_at', 'note', 'url'])
+        'evidence', 'files', 'assignee', 'reviewer', 'reviewed_at', 'note',
+        'url'])
     for std in ('MASVS', 'MASWE', 'MASTG'):
         for item in checklist[std]['items']:
             review = item['review'] or {}
@@ -482,6 +510,7 @@ def _export_csv(checklist):
                 item['status'], item['automated_status'],
                 '; '.join(item['evidence']),
                 '; '.join(f['name'] for f in item['files']),
+                item['assignee'],
                 review.get('reviewer'), review.get('updated_at'),
                 review.get('note'), item['url'])])
     return out.getvalue()
@@ -502,7 +531,8 @@ def checklist_export(request, checksum):
             request, 'Report not found or supported', False)
     checklist = build_checklist(
         data, platform, reviews=load_reviews(checksum),
-        files=load_files(checksum))
+        files=load_files(checksum),
+        assignments=load_assignments(checksum))
     fmt = form.cleaned_data['format']
     name = sanitize_filename(
         f'{data.get("app_name") or checksum[:8]}_checklist.{fmt}')
@@ -541,3 +571,43 @@ def checklist_history(request, checksum):
         'actor': r.ACTOR,
         'at': r.CREATED_AT.strftime('%Y-%m-%d %H:%M UTC'),
     } for r in rows]})
+
+
+@login_required
+@require_http_methods(['POST'])
+@permission_required(Permissions.REVIEW)
+def checklist_assign(request, checksum, api=False):
+    """Assign a checklist item to a tester, or clear the assignment."""
+    if not is_md5(checksum):
+        return _json_error('Invalid Hash', 400)
+    form = ChecklistAssignForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse(FormUtil.errors_message(form), status=400)
+    data, platform = load_scan(checksum)
+    if not data:
+        return _json_error('Report not found or supported', 404)
+    std = form.cleaned_data['standard']
+    item_id = form.cleaned_data['item_id']
+    checklist = build_checklist(data, platform)
+    if not any(i['id'] == item_id for i in checklist[std]['items']):
+        return _json_error('Unknown checklist item', 400)
+    assignee = form.cleaned_data['assignee']
+    actor = actor_name(request, api)
+    keys = {'MD5': checksum, 'STANDARD': std, 'ITEM_ID': item_id}
+    if not assignee:
+        ChecklistAssignment.objects.filter(**keys).delete()
+        log_action(checksum, std, item_id, 'unassign', actor)
+        return JsonResponse({'status': 'ok', 'assignee': ''})
+    if (django_settings.DISABLE_AUTHENTICATION != '1'
+            and not get_user_model().objects.filter(
+                username=assignee).exists()):
+        return _json_error('Unknown user', 400)
+    ChecklistAssignment.objects.update_or_create(
+        defaults={
+            'ASSIGNEE': assignee,
+            'ASSIGNED_BY': actor,
+            'UPDATED_AT': timezone.now(),
+        },
+        **keys)
+    log_action(checksum, std, item_id, 'assign', actor, note=assignee)
+    return JsonResponse({'status': 'ok', 'assignee': assignee})

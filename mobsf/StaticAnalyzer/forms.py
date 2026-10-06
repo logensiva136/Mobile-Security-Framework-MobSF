@@ -5,6 +5,7 @@ from django import forms
 
 from mobsf.MobSF.security import is_path_traversal
 from mobsf.MobSF.utils import (
+    USERNAME_REGEX,
     is_md5,
 )
 
@@ -107,6 +108,15 @@ class ChecklistReviewForm(ChecklistItemForm):
         required=False,
         choices=[('', 'Clear')] + [(s, s) for s in ITEM_STATUSES])
     note = forms.CharField(required=False, max_length=2000)
+
+
+class ChecklistAssignForm(ChecklistItemForm):
+    """Assign an item to a tester. Empty assignee clears it."""
+
+    assignee = forms.RegexField(
+        regex=USERNAME_REGEX,
+        required=False,
+        max_length=36)
 
 
 class ChecklistEvidenceForm(ChecklistItemForm):

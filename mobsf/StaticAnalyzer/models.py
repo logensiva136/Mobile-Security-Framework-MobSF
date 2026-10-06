@@ -190,6 +190,22 @@ class ChecklistReview(models.Model):
     UPDATED_AT = models.DateTimeField(default=timezone.now)
 
 
+class ChecklistAssignment(models.Model):
+    """Tester an item is assigned to."""
+
+    class Meta:
+        """Meta class for ChecklistAssignment model."""
+
+        unique_together = (('MD5', 'STANDARD', 'ITEM_ID'),)
+
+    MD5 = models.CharField(max_length=32, db_index=True)
+    STANDARD = models.CharField(max_length=10)
+    ITEM_ID = models.CharField(max_length=40)
+    ASSIGNEE = models.CharField(max_length=150)
+    ASSIGNED_BY = models.CharField(max_length=150, default='')
+    UPDATED_AT = models.DateTimeField(default=timezone.now)
+
+
 class ChecklistReviewLog(models.Model):
     """History of tester actions on a checklist item."""
 

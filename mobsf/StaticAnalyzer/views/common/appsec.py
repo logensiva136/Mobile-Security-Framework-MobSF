@@ -21,6 +21,7 @@ from mobsf.StaticAnalyzer.views.android.db_interaction import (
     get_context_from_db_entry as adb)
 from mobsf.StaticAnalyzer.views.common.checklist import (
     build_checklist,
+    load_assignments,
     load_files,
     load_reviews,
 )
@@ -274,7 +275,8 @@ def get_android_dashboard(context, from_ctx=False):
     findings['checklist'] = build_checklist(
         data, 'android',
         reviews=load_reviews(data.get('md5', '')),
-        files=load_files(data.get('md5', '')))
+        files=load_files(data.get('md5', '')),
+        assignments=load_assignments(data.get('md5', '')))
     return findings
 
 
@@ -370,7 +372,8 @@ def get_ios_dashboard(context, from_ctx=False):
     findings['checklist'] = build_checklist(
         data, 'ios',
         reviews=load_reviews(data.get('md5', '')),
-        files=load_files(data.get('md5', '')))
+        files=load_files(data.get('md5', '')),
+        assignments=load_assignments(data.get('md5', '')))
     return findings
 
 

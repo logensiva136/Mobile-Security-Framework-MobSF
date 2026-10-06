@@ -370,14 +370,22 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   `high`/`warning` hit means Failed. Only tag a rule when the weakness cannot occur
   without the API or pattern the rule looks for, otherwise "nothing found" is a false
   assurance. `android_apis.yaml` and `android_rules.yaml` are both read for coverage.
+- Assignment: `ChecklistAssignment` (one assignee per item). `POST checklist/<md5>/assign/`
+  and `api/v1/checklist_assign` need `Permissions.REVIEW`; when authentication is on the
+  assignee must be an existing user. The page can filter "Assigned to me" and
+  "Unassigned"; assignees appear in the API, CSV and JSON export.
+- Evidence quota: 10 files per item, 5 MB per file, 50 MB per scan.
+- iOS API rules (`ios_apis.yaml`) run on source (zip) scans only, so they count as
+  coverage only there (`SOURCE_RULE_FILES`); an IPA never gets a Success from them.
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
-1. Automation is limited by the rules. Eleven Android API rules are tagged with a `maswe`
-   id (MASWE-0030, 0032, 0035, 0037, 0049); most other weaknesses stay `ToBeTest`. Next:
-   tag or write rules for more weaknesses where the absence of an API proves the weakness
-   cannot occur, and do the same for iOS (`ios_apis.yaml`, `swift_rules.yaml`). Rules only
-   see decompiled sources, so obfuscated or native code can hide a hit.
-2. Evidence is not virus scanned and there is no per-scan storage quota. There is no
-   assignment of items to testers or "my items" filter yet. Evidence file contents are not
-   embedded in the PDF (names only).
+1. Automation is limited by the rules. Eleven Android and four iOS API rules are tagged
+   with a `maswe` id; most weaknesses stay `ToBeTest`. Next: tag or write rules for more
+   weaknesses where the absence of an API proves the weakness cannot occur. Rules only see
+   decompiled sources, so obfuscated or native code can hide a hit. iOS tagging is covered
+   by unit tests only (no source scan was run).
+2. Evidence is not virus scanned (needs an external scanner such as ClamAV) and its
+   contents are not embedded in the PDF (names only).
+3. `mobsf/StaticAnalyzer/test_files` is a git submodule. Without it
+   `StaticAnalyzerAndAPI` tests fail; this is unrelated to the checklist.

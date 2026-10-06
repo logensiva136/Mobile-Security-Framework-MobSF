@@ -24,6 +24,7 @@ sidebar-collapse
   </section>
   <section class="content">
     <div class="container-fluid">
+      <div id="cl-me" data-user="{{ current_user }}" hidden></div>
       <div class="alert {% if source.stale %}alert-warning{% else %}alert-info{% endif %}">
         <i class="fas fa-info-circle"></i>
         Checklists are from <strong>{{ source.source }}</strong>
@@ -74,6 +75,11 @@ sidebar-collapse
               <option value="ToBeTest">To be tested</option>
               <option value="NotApplicable">N/A</option>
             </select>
+            <select id="cl-assign-filter" class="form-control form-control-sm mr-2">
+              <option value="">All assignees</option>
+              <option value="mine">Assigned to me</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
             <input id="cl-search" class="form-control form-control-sm" placeholder="Search id / title">
           </div>
         </div>
@@ -84,7 +90,7 @@ sidebar-collapse
               <thead><tr><th>ID</th><th>Title</th><th>Evidence</th><th>Status</th><th>Tester review</th></tr></thead>
               <tbody>
               {% for it in cl.items %}
-                <tr class="cl-row" data-status="{{ it.status }}" data-standard="{{ it.standard }}" data-id="{{ it.id }}">
+                <tr class="cl-row" data-status="{{ it.status }}" data-standard="{{ it.standard }}" data-id="{{ it.id }}" data-assignee="{{ it.assignee }}">
                   <td>{% if it.url %}<a href="{{ it.url }}" target="_blank" rel="noopener noreferrer">{{ it.id }}</a>{% else %}{{ it.id }}{% endif %}</td>
                   <td>{{ it.title }}</td>
                   <td>{% for e in it.evidence %}<div class="small text-muted">{{ e }}</div>{% endfor %}</td>
@@ -95,6 +101,7 @@ sidebar-collapse
                       <div class="small">{{ it.review.status }} by {{ it.review.reviewer }} on {{ it.review.updated_at }}{% if it.review.note %}: {{ it.review.note }}{% endif %}</div>
                       {% if it.automated_status == 'Failed' and it.review.status != 'Failed' %}<div class="small text-danger">Automated Failed is kept. Resolve the finding to change it.</div>{% endif %}
                     {% endif %}
+                    {% if it.assignee %}<div class="small"><i class="fas fa-user"></i> Assigned to {{ it.assignee }}</div>{% endif %}
                     {% for f in it.files %}
                       <div class="small" data-evidence="{{ f.id }}">
                         <i class="fas fa-paperclip"></i>
@@ -104,6 +111,10 @@ sidebar-collapse
                       </div>
                     {% endfor %}
                     {% if can_review %}
+                      <div class="form-inline mt-1">
+                        <input class="form-control form-control-sm cl-assignee mr-1" maxlength="36" placeholder="Assign to" value="{{ it.assignee }}">
+                        <button type="button" class="btn btn-sm btn-outline-secondary cl-assign">Assign</button>
+                      </div>
                       <div class="form-inline mt-1">
                         <input type="file" class="form-control-file form-control-sm cl-evidence-file mr-1" accept=".png,.jpg,.jpeg,.gif,.pdf,.txt,.log,.json">
                         <button type="button" class="btn btn-sm btn-outline-secondary cl-upload">Attach</button>
@@ -149,8 +160,13 @@ sidebar-collapse
   function applyFilter() {
     var st = document.getElementById('cl-status').value;
     var q = document.getElementById('cl-search').value.toLowerCase();
+    var af = document.getElementById('cl-assign-filter').value;
+    var me = document.getElementById('cl-me').dataset.user;
     document.querySelectorAll('.cl-row').forEach(function (r) {
-      var ok = (!st || r.dataset.status === st) &&
+      var who = r.dataset.assignee;
+      var okAssign = !af || (af === 'mine' && who && who === me) ||
+                     (af === 'unassigned' && !who);
+      var ok = okAssign && (!st || r.dataset.status === st) &&
                (!q || r.textContent.toLowerCase().indexOf(q) > -1);
       r.classList.toggle('hidden', !ok);
     });
@@ -258,6 +274,20 @@ sidebar-collapse
       }
     });
   });
+  document.querySelectorAll('.cl-assign').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var row = btn.closest('tr');
+      var body = new URLSearchParams({
+        standard: row.dataset.standard,
+        item_id: row.dataset.id,
+        assignee: row.querySelector('.cl-assignee').value
+      });
+      post("{% url 'checklist_assign' checksum=hash %}", body,
+           row.querySelector('.cl-error'));
+    });
+  });
+  document.getElementById('cl-assign-filter').addEventListener(
+    'change', applyFilter);
   document.getElementById('cl-status').addEventListener('change', applyFilter);
   document.getElementById('cl-search').addEventListener('input', applyFilter);
 </script>
