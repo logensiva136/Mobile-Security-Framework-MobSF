@@ -359,11 +359,19 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
 - History: every set, clear, evidence add and evidence remove is logged in
   `ChecklistReviewLog` (`checklist/<md5>/history/`, last 50 entries). The scorecard (web and
   `api/v1/scorecard`) and both PDF reports carry reviews and evidence file names.
+- Matching: a weakness with legacy `MSTG-*` tags is matched by those tags. A weakness
+  without them (about a third) falls back to the CWE ids OWASP lists on it, matched against
+  the `cwe` metadata of MobSF rules. `meta.schema` in the data file is bumped whenever the
+  parsed fields change; copies with an older schema are ignored in favour of the bundled
+  snapshot.
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
-1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
-   Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
+1. Automation is limited by the rules, not by the mapping. MobSF rules cover only about 16
+   distinct CWEs on Android and 15 on iOS, so most weaknesses stay `ToBeTest` however clean
+   the app is. The CWE fallback lets 5 more Android and 4 more iOS weaknesses fail and
+   1 Android weakness succeed. Raising coverage means adding rules (with `cwe` and `masvs`
+   metadata) for uncovered weaknesses, not changing `checklist.py`.
 2. Evidence is not virus scanned and there is no per-scan storage quota. There is no
    assignment of items to testers or "my items" filter yet. Evidence file contents are not
    embedded in the PDF (names only).

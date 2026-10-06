@@ -1,8 +1,9 @@
 {
  "meta": {
   "source": "OWASP MAS",
+  "schema": 2,
   "source_url": "https://mas.owasp.org/search/search_index.json",
-  "retrieved_at": "2026-10-06T08:51:34+00:00",
+  "retrieved_at": "2026-10-06T09:53:37+00:00",
   "index_sha256": "aa3b14823742bcf9512fac91a58fd845e5a2dcbbfdea555d2a65dc5fcd0b41a9",
   "counts": {
    "masvs": 24,
@@ -335,6 +336,14 @@
     "MASVS-STORAGE-2",
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-200",
+    "CWE-284",
+    "CWE-312",
+    "CWE-313",
+    "CWE-732",
+    "CWE-922"
+   ],
    "tests": [
     "MASTG-TEST-0207",
     "MASTG-TEST-0305",
@@ -361,6 +370,15 @@
     "MASVS-STORAGE-1",
     "MASVS-STORAGE-2"
    ],
+   "cwe": [
+    "CWE-200",
+    "CWE-284",
+    "CWE-312",
+    "CWE-313",
+    "CWE-732",
+    "CWE-921",
+    "CWE-922"
+   ],
    "tests": [
     "MASTG-TEST-0201",
     "MASTG-TEST-0200",
@@ -381,6 +399,11 @@
     "MASVS-STORAGE-1",
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-312",
+    "CWE-318",
+    "CWE-321"
+   ],
    "tests": [
     "MASTG-TEST-0212",
     "MASTG-TEST-0214",
@@ -399,6 +422,12 @@
    "masvs_v2": [
     "MASVS-STORAGE-1"
    ],
+   "cwe": [
+    "CWE-312",
+    "CWE-321",
+    "CWE-540",
+    "CWE-798"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-STORAGE/MASWE-0004/"
   },
@@ -411,6 +440,12 @@
    ],
    "masvs_v2": [
     "MASVS-STORAGE-2"
+   ],
+   "cwe": [
+    "CWE-209",
+    "CWE-359",
+    "CWE-497",
+    "CWE-532"
    ],
    "tests": [
     "MASTG-TEST-0231",
@@ -429,6 +464,10 @@
    ],
    "masvs_v2": [
     "MASVS-STORAGE-2"
+   ],
+   "cwe": [
+    "CWE-212",
+    "CWE-313"
    ],
    "tests": [
     "MASTG-TEST-0216",
@@ -449,6 +488,15 @@
    "masvs_v2": [
     "MASVS-CRYPTO-1",
     "MASVS-CRYPTO-2"
+   ],
+   "cwe": [
+    "CWE-208",
+    "CWE-323",
+    "CWE-325",
+    "CWE-326",
+    "CWE-327",
+    "CWE-329",
+    "CWE-780"
    ],
    "tests": [
     "MASTG-TEST-0307",
@@ -474,6 +522,9 @@
    "masvs_v2": [
     "MASVS-CRYPTO-1"
    ],
+   "cwe": [
+    "CWE-328"
+   ],
    "tests": [
     "MASTG-TEST-0211"
    ],
@@ -491,6 +542,13 @@
     "MASVS-CRYPTO-1",
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-208",
+    "CWE-323",
+    "CWE-327",
+    "CWE-354",
+    "CWE-807"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CRYPTO/MASWE-0009/"
   },
@@ -506,6 +564,12 @@
     "MASVS-CRYPTO-1",
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-323",
+    "CWE-326",
+    "CWE-327",
+    "CWE-330"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CRYPTO/MASWE-0010/"
   },
@@ -519,6 +583,10 @@
    "masvs_v2": [
     "MASVS-CRYPTO-1"
    ],
+   "cwe": [
+    "CWE-295",
+    "CWE-347"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CRYPTO/MASWE-0011/"
   },
@@ -531,6 +599,11 @@
    ],
    "masvs_v2": [
     "MASVS-CRYPTO-1"
+   ],
+   "cwe": [
+    "CWE-332",
+    "CWE-337",
+    "CWE-338"
    ],
    "tests": [
     "MASTG-TEST-0204",
@@ -550,6 +623,13 @@
    "masvs_v2": [
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-331",
+    "CWE-326",
+    "CWE-337",
+    "CWE-338",
+    "CWE-522"
+   ],
    "tests": [
     "MASTG-TEST-0208",
     "MASTG-TEST-0209"
@@ -566,6 +646,13 @@
    "masvs_v2": [
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-326",
+    "CWE-327",
+    "CWE-759",
+    "CWE-760",
+    "CWE-916"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CRYPTO/MASWE-0014/"
   },
@@ -576,6 +663,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-CRYPTO-2"
+   ],
+   "cwe": [
+    "CWE-324"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CRYPTO/MASWE-0015/"
@@ -590,6 +680,10 @@
     "MASVS-AUTH-2",
     "MASVS-AUTH-3"
    ],
+   "cwe": [
+    "CWE-284",
+    "CWE-306"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CRYPTO/MASWE-0016/"
   },
@@ -603,6 +697,7 @@
    "masvs_v2": [
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [],
    "tests": [
     "MASTG-TEST-0247",
     "MASTG-TEST-0249",
@@ -626,6 +721,14 @@
     "MASVS-PLATFORM-1",
     "MASVS-STORAGE-2"
    ],
+   "cwe": [
+    "CWE-306",
+    "CWE-749",
+    "CWE-862",
+    "CWE-863",
+    "CWE-923",
+    "CWE-926"
+   ],
    "tests": [
     "MASTG-TEST-0366",
     "MASTG-TEST-0365",
@@ -647,6 +750,10 @@
     "MASVS-AUTH-1",
     "MASVS-AUTH-3"
    ],
+   "cwe": [
+    "CWE-287",
+    "CWE-522"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-AUTH/MASWE-0019/"
   },
@@ -662,6 +769,17 @@
    "masvs_v2": [
     "MASVS-AUTH-2",
     "MASVS-CRYPTO-2"
+   ],
+   "cwe": [
+    "CWE-285",
+    "CWE-287",
+    "CWE-312",
+    "CWE-319",
+    "CWE-326",
+    "CWE-602",
+    "CWE-603",
+    "CWE-863",
+    "CWE-922"
    ],
    "tests": [
     "MASTG-TEST-0329",
@@ -680,6 +798,10 @@
    "masvs_v2": [
     "MASVS-AUTH-2"
    ],
+   "cwe": [
+    "CWE-288",
+    "CWE-287"
+   ],
    "tests": [
     "MASTG-TEST-0326",
     "MASTG-TEST-0269",
@@ -695,6 +817,10 @@
    "masvs_v2": [
     "MASVS-AUTH-2",
     "MASVS-CRYPTO-2"
+   ],
+   "cwe": [
+    "CWE-287",
+    "CWE-522"
    ],
    "tests": [
     "MASTG-TEST-0328",
@@ -714,6 +840,9 @@
     "MASVS-AUTH-3",
     "MASVS-PLATFORM-3"
    ],
+   "cwe": [
+    "CWE-306"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-AUTH/MASWE-0023/"
   },
@@ -725,6 +854,11 @@
    "masvs_v2": [
     "MASVS-AUTH-3"
    ],
+   "cwe": [
+    "CWE-285",
+    "CWE-287",
+    "CWE-613"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-AUTH/MASWE-0024/"
   },
@@ -735,6 +869,10 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-AUTH-3"
+   ],
+   "cwe": [
+    "CWE-451",
+    "CWE-778"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-AUTH/MASWE-0025/"
@@ -749,6 +887,9 @@
    ],
    "masvs_v2": [
     "MASVS-NETWORK-1"
+   ],
+   "cwe": [
+    "CWE-319"
    ],
    "tests": [
     "MASTG-TEST-0218",
@@ -780,6 +921,10 @@
    "masvs_v2": [
     "MASVS-NETWORK-1"
    ],
+   "cwe": [
+    "CWE-295",
+    "CWE-297"
+   ],
    "tests": [
     "MASTG-TEST-0285",
     "MASTG-TEST-0282",
@@ -803,6 +948,9 @@
    "masvs_v2": [
     "MASVS-NETWORK-2"
    ],
+   "cwe": [
+    "CWE-295"
+   ],
    "tests": [
     "MASTG-TEST-0244",
     "MASTG-TEST-0243",
@@ -823,6 +971,10 @@
     "MASVS-STORAGE-2",
     "MASVS-CODE-4"
    ],
+   "cwe": [
+    "CWE-939",
+    "CWE-917"
+   ],
    "tests": [
     "MASTG-TEST-0393",
     "MASTG-TEST-0394",
@@ -841,6 +993,10 @@
     "MASVS-PLATFORM-1",
     "MASVS-STORAGE-2"
    ],
+   "cwe": [
+    "CWE-200",
+    "CWE-668"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PLATFORM/MASWE-0030/"
   },
@@ -855,6 +1011,9 @@
     "MASVS-PLATFORM-1",
     "MASVS-STORAGE-2"
    ],
+   "cwe": [
+    "CWE-829"
+   ],
    "tests": [
     "MASTG-TEST-0389"
    ],
@@ -868,6 +1027,10 @@
    "masvs_v2": [
     "MASVS-PLATFORM-1",
     "MASVS-STORAGE-2"
+   ],
+   "cwe": [
+    "CWE-927",
+    "CWE-940"
    ],
    "tests": [
     "MASTG-TEST-0372",
@@ -887,6 +1050,10 @@
     "MASVS-PLATFORM-2",
     "MASVS-STORAGE-2"
    ],
+   "cwe": [
+    "CWE-749",
+    "CWE-94"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PLATFORM/MASWE-0033/"
   },
@@ -901,6 +1068,12 @@
     "MASVS-PLATFORM-2",
     "MASVS-STORAGE-2",
     "MASVS-CODE-4"
+   ],
+   "cwe": [
+    "CWE-22",
+    "CWE-79",
+    "CWE-200",
+    "CWE-669"
    ],
    "tests": [
     "MASTG-TEST-0252",
@@ -928,6 +1101,11 @@
     "MASVS-PLATFORM-2",
     "MASVS-CODE-4"
    ],
+   "cwe": [
+    "CWE-79",
+    "CWE-601",
+    "CWE-829"
+   ],
    "tests": [
     "MASTG-TEST-0400",
     "MASTG-TEST-0399",
@@ -947,6 +1125,10 @@
    "masvs_v2": [
     "MASVS-PLATFORM-3",
     "MASVS-STORAGE-2"
+   ],
+   "cwe": [
+    "CWE-200",
+    "CWE-359"
    ],
    "tests": [
     "MASTG-TEST-0340",
@@ -973,6 +1155,10 @@
     "MASVS-PLATFORM-3",
     "MASVS-STORAGE-2"
    ],
+   "cwe": [
+    "CWE-200",
+    "CWE-359"
+   ],
    "tests": [
     "MASTG-TEST-0315"
    ],
@@ -988,6 +1174,10 @@
    "masvs_v2": [
     "MASVS-PLATFORM-3",
     "MASVS-STORAGE-2"
+   ],
+   "cwe": [
+    "CWE-200",
+    "CWE-359"
    ],
    "tests": [
     "MASTG-TEST-0293",
@@ -1010,6 +1200,9 @@
     "MASVS-PLATFORM-3",
     "MASVS-CODE-1"
    ],
+   "cwe": [
+    "CWE-1021"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PLATFORM/MASWE-0039/"
   },
@@ -1021,6 +1214,10 @@
    "masvs_v2": [
     "MASVS-PLATFORM-3",
     "MASVS-STORAGE-2"
+   ],
+   "cwe": [
+    "CWE-200",
+    "CWE-359"
    ],
    "tests": [
     "MASTG-TEST-0316"
@@ -1035,6 +1232,12 @@
    "masvs_v2": [
     "MASVS-CODE-1"
    ],
+   "cwe": [
+    "CWE-451",
+    "CWE-693",
+    "CWE-1104",
+    "CWE-1357"
+   ],
    "tests": [
     "MASTG-TEST-0245"
    ],
@@ -1048,6 +1251,10 @@
    "masvs_v2": [
     "MASVS-CODE-1"
    ],
+   "cwe": [
+    "CWE-693",
+    "CWE-1357"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CODE/MASWE-0042/"
   },
@@ -1060,6 +1267,10 @@
    ],
    "masvs_v2": [
     "MASVS-CODE-2"
+   ],
+   "cwe": [
+    "CWE-602",
+    "CWE-693"
    ],
    "tests": [
     "MASTG-TEST-0392",
@@ -1079,6 +1290,10 @@
    "masvs_v2": [
     "MASVS-CODE-3"
    ],
+   "cwe": [
+    "CWE-1395",
+    "CWE-1357"
+   ],
    "tests": [
     "MASTG-TEST-0274",
     "MASTG-TEST-0272",
@@ -1096,6 +1311,7 @@
     "MASVS-CODE-3",
     "MASVS-CODE-4"
    ],
+   "cwe": [],
    "tests": [
     "MASTG-TEST-0222",
     "MASTG-TEST-0223",
@@ -1116,6 +1332,11 @@
     "MASVS-CODE-3",
     "MASVS-CRYPTO-2"
    ],
+   "cwe": [
+    "CWE-327",
+    "CWE-477",
+    "CWE-522"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CODE/MASWE-0046/"
   },
@@ -1133,6 +1354,12 @@
     "MASVS-CRYPTO-1",
     "MASVS-NETWORK-1"
    ],
+   "cwe": [
+    "CWE-287",
+    "CWE-326",
+    "CWE-327",
+    "CWE-1240"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CODE/MASWE-0047/"
   },
@@ -1144,6 +1371,11 @@
    "masvs_v2": [
     "MASVS-CODE-3"
    ],
+   "cwe": [
+    "CWE-506",
+    "CWE-507",
+    "CWE-511"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CODE/MASWE-0048/"
   },
@@ -1154,6 +1386,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-CODE-4"
+   ],
+   "cwe": [
+    "CWE-494"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-CODE/MASWE-0049/"
@@ -1167,6 +1402,19 @@
    ],
    "masvs_v2": [
     "MASVS-CODE-4"
+   ],
+   "cwe": [
+    "CWE-20",
+    "CWE-22",
+    "CWE-73",
+    "CWE-89",
+    "CWE-116",
+    "CWE-345",
+    "CWE-348",
+    "CWE-349",
+    "CWE-502",
+    "CWE-611",
+    "CWE-924"
    ],
    "tests": [
     "MASTG-TEST-0375",
@@ -1188,6 +1436,9 @@
     "MASVS-RESILIENCE-1",
     "MASVS-RESILIENCE-4"
    ],
+   "cwe": [
+    "CWE-1326"
+   ],
    "tests": [
     "MASTG-TEST-0325",
     "MASTG-TEST-0324",
@@ -1204,6 +1455,9 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-1"
    ],
+   "cwe": [
+    "CWE-693"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-RESILIENCE/MASWE-0052/"
   },
@@ -1219,6 +1473,7 @@
     "MASVS-RESILIENCE-1",
     "MASVS-RESILIENCE-4"
    ],
+   "cwe": [],
    "tests": [
     "MASTG-TEST-0351",
     "MASTG-TEST-0367"
@@ -1235,6 +1490,7 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-1"
    ],
+   "cwe": [],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-RESILIENCE/MASWE-0054/"
   },
@@ -1245,6 +1501,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-RESILIENCE-2"
+   ],
+   "cwe": [
+    "CWE-693"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-RESILIENCE/MASWE-0055/"
@@ -1258,6 +1517,9 @@
    ],
    "masvs_v2": [
     "MASVS-RESILIENCE-2"
+   ],
+   "cwe": [
+    "CWE-347"
    ],
    "tests": [
     "MASTG-TEST-0225",
@@ -1277,6 +1539,9 @@
     "MASVS-RESILIENCE-2",
     "MASVS-CODE-4"
    ],
+   "cwe": [
+    "CWE-471"
+   ],
    "tests": [
     "MASTG-TEST-0338",
     "MASTG-TEST-0387"
@@ -1293,6 +1558,7 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-2"
    ],
+   "cwe": [],
    "tests": [
     "MASTG-TEST-0341",
     "MASTG-TEST-0354"
@@ -1309,6 +1575,9 @@
    ],
    "masvs_v2": [
     "MASVS-RESILIENCE-3"
+   ],
+   "cwe": [
+    "CWE-693"
    ],
    "tests": [
     "MASTG-TEST-0369",
@@ -1327,6 +1596,9 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-3"
    ],
+   "cwe": [
+    "CWE-693"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-RESILIENCE/MASWE-0060/"
   },
@@ -1340,6 +1612,13 @@
    ],
    "masvs_v2": [
     "MASVS-RESILIENCE-3"
+   ],
+   "cwe": [
+    "CWE-489",
+    "CWE-497",
+    "CWE-540",
+    "CWE-912",
+    "CWE-1295"
    ],
    "tests": [
     "MASTG-TEST-0263",
@@ -1363,6 +1642,9 @@
     "MASVS-RESILIENCE-3",
     "MASVS-NETWORK-1"
    ],
+   "cwe": [
+    "CWE-319"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-RESILIENCE/MASWE-0062/"
   },
@@ -1376,6 +1658,9 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-4",
     "MASVS-PLATFORM-2"
+   ],
+   "cwe": [
+    "CWE-489"
    ],
    "tests": [
     "MASTG-TEST-0227",
@@ -1394,6 +1679,7 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-4"
    ],
+   "cwe": [],
    "tests": [
     "MASTG-TEST-0353",
     "MASTG-TEST-0352",
@@ -1412,6 +1698,7 @@
    "masvs_v2": [
     "MASVS-RESILIENCE-4"
    ],
+   "cwe": [],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-RESILIENCE/MASWE-0065/"
   },
@@ -1422,6 +1709,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-PRIVACY-1"
+   ],
+   "cwe": [
+    "CWE-250"
    ],
    "tests": [
     "MASTG-TEST-0255",
@@ -1444,6 +1734,9 @@
    "masvs_v2": [
     "MASVS-PRIVACY-2"
    ],
+   "cwe": [
+    "CWE-359"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0067/"
   },
@@ -1454,6 +1747,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-PRIVACY-2"
+   ],
+   "cwe": [
+    "CWE-359"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0068/"
@@ -1466,6 +1762,9 @@
    "masvs_v2": [
     "MASVS-PRIVACY-2"
    ],
+   "cwe": [
+    "CWE-359"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0069/"
   },
@@ -1477,6 +1776,9 @@
    "masvs_v2": [
     "MASVS-PRIVACY-2"
    ],
+   "cwe": [
+    "CWE-359"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0070/"
   },
@@ -1487,6 +1789,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-PRIVACY-2"
+   ],
+   "cwe": [
+    "CWE-359"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0071/"
@@ -1500,6 +1805,9 @@
    ],
    "masvs_v2": [
     "MASVS-PRIVACY-3"
+   ],
+   "cwe": [
+    "CWE-359"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0072/"
@@ -1516,6 +1824,9 @@
     "MASVS-PRIVACY-3",
     "MASVS-PRIVACY-1"
    ],
+   "cwe": [
+    "CWE-359"
+   ],
    "tests": [
     "MASTG-TEST-0206",
     "MASTG-TEST-0318",
@@ -1531,6 +1842,9 @@
    "masvs_v2": [
     "MASVS-PRIVACY-3"
    ],
+   "cwe": [
+    "CWE-359"
+   ],
    "tests": [
     "MASTG-TEST-0281"
    ],
@@ -1544,6 +1858,10 @@
    "masvs_v2": [
     "MASVS-PRIVACY-3"
    ],
+   "cwe": [
+    "CWE-1357",
+    "CWE-494"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0075/"
   },
@@ -1554,6 +1872,9 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-PRIVACY-4"
+   ],
+   "cwe": [
+    "CWE-359"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0076/"
@@ -1566,6 +1887,9 @@
    "masvs_v2": [
     "MASVS-PRIVACY-4"
    ],
+   "cwe": [
+    "CWE-359"
+   ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0077/"
   },
@@ -1576,6 +1900,12 @@
    "masvs_v1": [],
    "masvs_v2": [
     "MASVS-PRIVACY-4"
+   ],
+   "cwe": [
+    "CWE-200",
+    "CWE-285",
+    "CWE-358",
+    "CWE-359"
    ],
    "tests": [],
    "url": "https://mas.owasp.org/MASWE/MASVS-PRIVACY/MASWE-0078/"

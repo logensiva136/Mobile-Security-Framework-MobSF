@@ -106,8 +106,14 @@ RULE_FILES = {
 TAG = re.compile(
     r'\b(?:MSTG-|MASVS-)?(storage|crypto|auth|network|platform|code|'
     r'resilience)[-_ ]*(\d+)\b', re.I)
+CWE = re.compile(r'cwe-?(\d+)', re.I)
 FAIL_SEV = {'high', 'warning'}
 PASS_SEV = {'good', 'secure'}
+
+
+def _cwe_tags(text):
+    """Return CWE ids (CWE-295) found in text."""
+    return {f'CWE-{num}' for num in CWE.findall(str(text or ''))}
 
 
 def _tags(text):
@@ -125,6 +131,8 @@ def _tested(platform):
             for line in path.read_text(encoding='utf-8').splitlines():
                 if 'masvs' in line.lower():
                     tested |= _tags(line)
+                if 'cwe' in line.lower():
+                    tested |= _cwe_tags(line)
         except OSError:
             continue
     return tested
@@ -134,9 +142,11 @@ def _walk(obj, found):
     """Collect (tags, severity, title) from dicts with metadata.masvs."""
     if isinstance(obj, dict):
         meta = obj.get('metadata')
-        if isinstance(meta, dict) and meta.get('masvs'):
+        if isinstance(meta, dict) and (
+                meta.get('masvs') or meta.get('cwe')):
             found.append((
-                _tags(meta['masvs']),
+                _tags(meta.get('masvs'))
+                | _cwe_tags(meta.get('cwe')),
                 str(meta.get('severity', '')).lower(),
                 meta.get('description') or meta.get('title') or ''))
         for val in obj.values():
@@ -198,11 +208,16 @@ def _collect(data):
 
 
 def _maswe_status(weak, tested, failed, passed, review):
-    """Return (status, evidence) for one weakness."""
-    tags = weak['masvs_v1']
+    """Return (status, evidence) for one weakness.
+
+    Weaknesses with legacy MSTG tags are matched by those tags. The others
+    fall back to the CWE ids OWASP lists on the weakness.
+    """
+    tags = weak['masvs_v1'] or weak.get('cwe', [])
     hits = [t for t in tags if t in failed]
     if hits:
-        titles = [x for t in hits for x in failed[t]]
+        titles = [f'{x} ({t})' if t.startswith('CWE') else x
+                  for t in hits for x in failed[t]]
         return CheckStatus.FAILED, list(dict.fromkeys(titles))
     notes = [x for t in tags for x in review.get(t, [])]
     covered = bool(tags) and all(

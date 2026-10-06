@@ -39,6 +39,10 @@ TAG_RE = re.compile(r'<[^>]+>')
 V1_RE = re.compile(r'MSTG-[A-Z]+-\d+')
 V2_RE = re.compile(r'MASVS-[A-Z]+-\d+')
 WEAK_RE = re.compile(r'MASWE-\d{4}')
+CWE_RE = re.compile(r'CWE-\d+')
+CWE_STOP = ('MASVS V1:', 'MASVS V2:', 'Android ', 'iOS ',
+            'MAS Requirement', 'Platform')
+SCHEMA = 2
 TEST_RE = re.compile(r'MASTG-TEST-\d{4}')
 
 _lock = threading.Lock()
@@ -103,6 +107,7 @@ def parse_search_index(index, retrieved_at=None, sha256=''):
             text = _text(doc.get('text'))
             v1 = _segment(text, 'MASVS V1:', ['MASVS V2:', 'CWE:'])
             v2 = _segment(text, 'MASVS V2:', ['CWE:', 'MASVS V1:'])
+            cwe = _segment(text, 'CWE:', CWE_STOP)
             tests = docs.get(f'{loc}#tests', {})
             maswe.append({
                 'id': ident,
@@ -110,6 +115,7 @@ def parse_search_index(index, retrieved_at=None, sha256=''):
                 'category': cat,
                 'masvs_v1': _unique(V1_RE.findall(v1)),
                 'masvs_v2': _unique(V2_RE.findall(v2)),
+                'cwe': _unique(CWE_RE.findall(cwe)),
                 'tests': _unique(TEST_RE.findall(_text(tests.get('text')))),
                 'url': _url(loc),
             })
@@ -131,6 +137,7 @@ def parse_search_index(index, retrieved_at=None, sha256=''):
     return {
         'meta': {
             'source': 'OWASP MAS',
+            'schema': SCHEMA,
             'source_url': SOURCE_URL,
             'retrieved_at': retrieved_at or datetime.now(
                 timezone.utc).isoformat(timespec='seconds'),
@@ -154,6 +161,7 @@ def is_valid(data):
                 and all(isinstance(data.get(k), list) and data[k]
                         for k in ('masvs', 'maswe', 'mastg'))
                 and isinstance(data.get('meta'), dict)
+                and data['meta'].get('schema') == SCHEMA
                 and bool(data['meta'].get('retrieved_at')))
     except (AttributeError, TypeError):
         return False

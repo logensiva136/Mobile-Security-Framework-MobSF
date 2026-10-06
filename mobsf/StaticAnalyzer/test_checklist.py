@@ -36,6 +36,9 @@ FIXTURE = {
         {'id': 'MASWE-0018', 'title': 'Missing authz',
          'category': 'MASVS-AUTH', 'masvs_v1': ['MSTG-AUTH-3'],
          'masvs_v2': ['MASVS-AUTH-1'], 'tests': [], 'url': ''},
+        {'id': 'MASWE-0098', 'title': 'Certificate validation',
+         'category': 'MASVS-NETWORK', 'masvs_v1': [],
+         'masvs_v2': [], 'cwe': ['CWE-295'], 'tests': [], 'url': ''},
         {'id': 'MASWE-0099', 'title': 'No legacy mapping',
          'category': 'MASVS-CODE', 'masvs_v1': [],
          'masvs_v2': [], 'tests': [], 'url': ''},
@@ -52,6 +55,22 @@ FIXTURE = {
          'deprecated': True, 'url': ''},
     ],
 }
+
+
+def _ctx_cwe(cwe, sev):
+    return {
+        'code_analysis': {
+            'findings': {
+                'rule': {
+                    'metadata': {
+                        'cwe': cwe,
+                        'severity': sev,
+                        'description': 'cert problem',
+                    },
+                },
+            },
+        },
+    }
 
 
 def _ctx(masvs, sev):
@@ -125,6 +144,31 @@ class ChecklistTests(SimpleTestCase):
         cl = self.build(_ctx('MSTG-CRYPTO-3', 'warning'), 'ios')
         self.assertEqual(cl['MASWE']['summary']['Failed'], 0)
 
+    def test_cwe_fallback_fails_weakness_without_legacy_tag(self):
+        cl = self.build(_ctx_cwe('cwe-295', 'high'))
+        item = next(i for i in cl['MASWE']['items']
+                    if i['id'] == 'MASWE-0098')
+        self.assertEqual(item['status'], 'Failed')
+        self.assertIn('CWE-295', item['evidence'][0])
+
+    def test_cwe_fallback_success_when_rule_covers_it(self):
+        cl = self.build({})
+        self.assertEqual(self.status(cl, 'MASWE', 'MASWE-0098'), 'Success')
+
+    def test_cwe_info_finding_needs_review(self):
+        cl = self.build(_ctx_cwe('cwe-295', 'info'))
+        self.assertEqual(self.status(cl, 'MASWE', 'MASWE-0098'), 'ToBeTest')
+
+    def test_cwe_does_not_affect_weakness_with_legacy_tag(self):
+        cl = self.build(_ctx_cwe('cwe-311', 'high'))
+        self.assertEqual(self.status(cl, 'MASWE', 'MASWE-0001'), 'Success')
+
+    def test_uncovered_cwe_stays_to_be_tested(self):
+        cl = self.build({}, 'ios')
+        item = next(i for i in cl['MASWE']['items']
+                    if i['id'] == 'MASWE-0099')
+        self.assertEqual(item['status'], 'ToBeTest')
+
     def test_source_info_included(self):
         cl = self.build({})
         self.assertEqual(cl['source']['source'], 'OWASP MAS')
@@ -145,7 +189,8 @@ class StandardsTests(SimpleTestCase):
         {'location': 'MASWE/MASVS-STORAGE/MASWE-0001/',
          'title': 'MASWE-0001: Unencrypted',
          'text': '<p>Mappings</p><p>MASVS V1: MSTG-STORAGE-2</p>'
-                 '<p>MASVS V2: MASVS-STORAGE-1</p><p>CWE: CWE-311</p>'},
+                 '<p>MASVS V2: MASVS-STORAGE-1</p><p>CWE: CWE-311: Missing '
+                 'Encryption, CWE-312: Cleartext</p>'},
         {'location': 'MASWE/MASVS-STORAGE/MASWE-0001/#tests',
          'title': 'Tests', 'text': '<p>MASTG-TEST-0207: Test</p>'},
         {'location': 'MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0207/',
@@ -166,11 +211,18 @@ class StandardsTests(SimpleTestCase):
         self.assertEqual(weak['masvs_v1'], ['MSTG-STORAGE-2'])
         self.assertEqual(weak['masvs_v2'], ['MASVS-STORAGE-1'])
         self.assertEqual(weak['tests'], ['MASTG-TEST-0207'])
+        self.assertEqual(weak['cwe'], ['CWE-311', 'CWE-312'])
         old = next(t for t in data['mastg']
                    if t['id'] == 'MASTG-TEST-0001')
         self.assertTrue(old['deprecated'])
         self.assertTrue(data['masvs'][0]['url'].startswith(
             'https://mas.owasp.org/'))
+
+    def test_old_schema_data_is_rejected(self):
+        data = mas_standards.parse_search_index(self.INDEX)
+        self.assertTrue(mas_standards.is_valid(data))
+        data['meta']['schema'] = 1
+        self.assertFalse(mas_standards.is_valid(data))
 
     def test_invalid_data_rejected(self):
         self.assertFalse(mas_standards.is_valid({}))
