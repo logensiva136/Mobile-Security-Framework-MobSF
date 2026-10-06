@@ -340,11 +340,18 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   `apidocs.html`), and a section in both PDF reports via `appsec.checklist`. Tests live in
   `mobsf/StaticAnalyzer/test_checklist.py` (builder, standards, web view, API).
 
-### Known Gaps On The Current Branch (remove each item when fixed)
-
-1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
-   Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
-2. `checklist_page` and `api/v1/checklist` are read-only and use `@login_required` like the
-   scorecard (there is no read permission in `Permissions`). Tester actions will need a new
-   permission. `view_source`-style files are not part of the checklist yet.
-3. There is no tester workflow yet (per-scan status, notes, evidence, export).
+- Tester workflow: `ChecklistReview` (StaticAnalyzer/models.py, linked by `MD5`) stores a
+  decision per item. `POST checklist/<md5>/review/` needs `Permissions.REVIEW`
+  (`can_review`, granted to the maintainer group by `create_roles`), validates input with
+  `ChecklistReviewForm` and only accepts items of that scan's checklist. A decision replaces
+  the automated status but never hides an automated `Failed`; both and the reviewer are
+  kept. `checklist/<md5>/export/?format=json|csv` exports everything; CSV cells are
+  neutralized against spreadsheet formulas.
+
+### Known Gaps On The Current Branch (remove each item when fixed)
+
+1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
+   Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
+2. Tester decisions have no REST write endpoint and no evidence file uploads yet
+   (uploads need size/type limits, storage under `MOBSF_HOME` and `sanitize_filename`).
+   Reviews are not shown in the PDF report.

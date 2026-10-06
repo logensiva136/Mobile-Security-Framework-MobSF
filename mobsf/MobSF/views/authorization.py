@@ -42,12 +42,14 @@ register.filter('md5', get_md5)
 PERM_CAN_SCAN = 'can_scan'
 PERM_CAN_SUPPRESS = 'can_suppress'
 PERM_CAN_DELETE = 'can_delete'
+PERM_CAN_REVIEW = 'can_review'
 
 
 class Permissions(Enum):
     SCAN = f'StaticAnalyzer.{PERM_CAN_SCAN}'
     SUPPRESS = f'StaticAnalyzer.{PERM_CAN_SUPPRESS}'
     DELETE = f'StaticAnalyzer.{PERM_CAN_DELETE}'
+    REVIEW = f'StaticAnalyzer.{PERM_CAN_REVIEW}'
 
 
 MAINTAINER_GROUP = settings.IDP_MAINTAINER_GROUP
@@ -99,8 +101,13 @@ def create_authorization_roles():
             codename=PERM_CAN_SUPPRESS)
         delete_permissions = Permission.objects.filter(
             codename=PERM_CAN_DELETE)
+        review_permissions = Permission.objects.filter(
+            codename=PERM_CAN_REVIEW)
         all_perms = list(chain(
-            scan_permissions, suppress_permissions, delete_permissions))
+            scan_permissions,
+            suppress_permissions,
+            delete_permissions,
+            review_permissions))
         maintainer.permissions.set(all_perms)
     except Exception:
         logger.exception('[ERROR] Failed to create roles and permissions')

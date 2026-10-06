@@ -5,9 +5,11 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 from django.conf import settings
+from django.contrib.auth.models import Permission, User
 from django.test import SimpleTestCase, TestCase
 
 from mobsf.MobSF.init import api_key
+from mobsf.StaticAnalyzer.models import ChecklistReview
 from mobsf.StaticAnalyzer.views.common import checklist as checklist_module
 from mobsf.StaticAnalyzer.views.common import mas_standards
 from mobsf.StaticAnalyzer.views.common.checklist import build_checklist
@@ -337,3 +339,139 @@ class ChecklistApiTests(TestCase):
         self.assertIn('retrieved_at', body['checklist']['source'])
         for std in ('MASVS', 'MASWE', 'MASTG'):
             self.assertIn(std, body['checklist'])
+
+
+def _review(status, note='checked'):
+    return {
+        'status': status,
+        'note': note,
+        'reviewer': 'tester',
+        'updated_at': '2026-10-06 10:00 UTC',
+    }
+
+
+class ReviewMergeTests(SimpleTestCase):
+    """Tester decisions merged into the automated checklist."""
+
+    def build(self, data, reviews, platform='android'):
+        return build_checklist(data, platform, FIXTURE, reviews)
+
+    def item(self, cl, std, item_id):
+        return next(i for i in cl[std]['items'] if i['id'] == item_id)
+
+    def test_review_replaces_to_be_test(self):
+        cl = self.build({}, {('MASWE', 'MASWE-0099'): _review('Success')})
+        item = self.item(cl, 'MASWE', 'MASWE-0099')
+        self.assertEqual(item['status'], 'Success')
+        self.assertEqual(item['automated_status'], 'ToBeTest')
+        self.assertEqual(item['review']['reviewer'], 'tester')
+
+    def test_review_never_hides_automated_failed(self):
+        data = _ctx('storage-2', 'high')
+        cl = self.build(data, {('MASWE', 'MASWE-0001'): _review('Success')})
+        item = self.item(cl, 'MASWE', 'MASWE-0001')
+        self.assertEqual(item['status'], 'Failed')
+        self.assertEqual(item['review']['status'], 'Success')
+
+    def test_review_rolls_up_to_masvs(self):
+        cl = self.build(
+            {}, {('MASWE', 'MASWE-0018'): _review('Success')})
+        self.assertEqual(
+            self.item(cl, 'MASVS', 'MASVS-AUTH-1')['status'], 'Success')
+
+    def test_summary_counts_effective_status(self):
+        cl = self.build({}, {('MASTG', 'MASTG-TEST-0207'): _review('Failed')})
+        self.assertEqual(cl['MASTG']['summary']['Failed'], 1)
+
+
+class ReviewEndpointTests(TestCase):
+    """Saving, clearing and exporting tester decisions."""
+
+    base = f'/checklist/{HASH}'
+
+    def setUp(self):
+        self.patches = _patch_scan()
+        for patch in self.patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        std_patch = mock.patch.object(
+            checklist_module, 'load_standards', return_value=FIXTURE)
+        std_patch.start()
+        self.addCleanup(std_patch.stop)
+
+    def save(self, **fields):
+        data = {'standard': 'MASWE', 'item_id': 'MASWE-0099',
+                'status': 'Success', 'note': 'verified'}
+        data.update(fields)
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            return self.client.post(f'{self.base}/review/', data)
+
+    def test_save_and_clear(self):
+        response = self.save()
+        self.assertEqual(response.status_code, 200)
+        row = ChecklistReview.objects.get(MD5=HASH, ITEM_ID='MASWE-0099')
+        self.assertEqual((row.STATUS, row.NOTE), ('Success', 'verified'))
+        self.assertEqual(response.json()['review']['reviewer'], 'anonymous')
+        self.save(status='Failed', note='again')
+        self.assertEqual(ChecklistReview.objects.count(), 1)
+        self.assertEqual(ChecklistReview.objects.get().STATUS, 'Failed')
+        self.assertEqual(self.save(status='').status_code, 200)
+        self.assertEqual(ChecklistReview.objects.count(), 0)
+
+    def test_rejects_bad_input(self):
+        self.assertEqual(self.save(standard='OTHER').status_code, 400)
+        self.assertEqual(self.save(status='Maybe').status_code, 400)
+        self.assertEqual(self.save(item_id='../etc').status_code, 400)
+        self.assertEqual(self.save(note='x' * 2001).status_code, 400)
+        # Valid format but not part of this checklist
+        self.assertEqual(self.save(item_id='MASWE-7777').status_code, 400)
+        self.assertEqual(ChecklistReview.objects.count(), 0)
+
+    def test_get_not_allowed(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.client.get(f'{self.base}/review/')
+        self.assertEqual(response.status_code, 405)
+
+    def test_requires_login_and_permission(self):
+        data = {'standard': 'MASWE', 'item_id': 'MASWE-0099',
+                'status': 'Success'}
+        with self.settings(DISABLE_AUTHENTICATION='0'):
+            anon = self.client.post(f'{self.base}/review/', data)
+            self.assertEqual(anon.status_code, 302)
+            User.objects.create_user('viewer', password='pw-for-test-1')
+            self.client.login(username='viewer', password='pw-for-test-1')
+            viewer = self.client.post(f'{self.base}/review/', data)
+            self.assertEqual(viewer.status_code, 403)
+            user = User.objects.get(username='viewer')
+            user.user_permissions.add(
+                Permission.objects.get(codename='can_review'))
+            allowed = self.client.post(f'{self.base}/review/', data)
+            self.assertEqual(allowed.status_code, 200)
+            self.assertEqual(allowed.json()['review']['reviewer'], 'viewer')
+
+    def test_review_shown_on_page_and_in_api(self):
+        self.save(note='manual proof')
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            page = self.client.get(f'{self.base}/')
+        self.assertContains(page, 'manual proof')
+        self.assertContains(page, 'cl-save')
+
+    def test_export_csv_neutralizes_formulas(self):
+        self.save(note='=HYPERLINK("http://evil")')
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.client.get(
+                f'{self.base}/export/', {'format': 'csv'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        self.assertIn('attachment', response['Content-Disposition'])
+        body = response.content.decode()
+        self.assertIn("'=HYPERLINK", body)
+        self.assertNotIn(',=HYPERLINK', body)
+
+    def test_export_json_and_bad_format(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            ok = self.client.get(f'{self.base}/export/', {'format': 'json'})
+            bad = self.client.get(f'{self.base}/export/', {'format': 'xml'})
+        self.assertEqual(ok.status_code, 200)
+        self.assertIn('source', ok.json()['checklist'])
+        self.assertEqual(bad.status_code, 400)

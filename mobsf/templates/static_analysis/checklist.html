@@ -18,6 +18,8 @@ sidebar-collapse
         - {% if app_name %}{{ app_name }}{% else %}{{ file_name }}{% endif %}
       </h1>
       <a class="btn btn-sm btn-outline-primary mt-2" href="{% url 'appsec_dashboard' checksum=hash %}"><i class="fas fa-arrow-left"></i> Back to Scorecard</a>
+      <a class="btn btn-sm btn-outline-secondary mt-2" href="{% url 'checklist_export' checksum=hash %}?format=json"><i class="fas fa-file-code"></i> Export JSON</a>
+      <a class="btn btn-sm btn-outline-secondary mt-2" href="{% url 'checklist_export' checksum=hash %}?format=csv"><i class="fas fa-file-csv"></i> Export CSV</a>
     </div>
   </section>
   <section class="content">
@@ -79,14 +81,35 @@ sidebar-collapse
           {% for std, cl in sections %}
           <div class="tab-pane {% if forloop.first %}active{% endif %}" id="tab-{{ std }}">
             <table class="table table-sm table-striped">
-              <thead><tr><th>ID</th><th>Title</th><th>Evidence</th><th>Status</th></tr></thead>
+              <thead><tr><th>ID</th><th>Title</th><th>Evidence</th><th>Status</th><th>Tester review</th></tr></thead>
               <tbody>
               {% for it in cl.items %}
-                <tr class="cl-row" data-status="{{ it.status }}">
+                <tr class="cl-row" data-status="{{ it.status }}" data-standard="{{ it.standard }}" data-id="{{ it.id }}">
                   <td>{% if it.url %}<a href="{{ it.url }}" target="_blank" rel="noopener noreferrer">{{ it.id }}</a>{% else %}{{ it.id }}{% endif %}</td>
                   <td>{{ it.title }}</td>
                   <td>{% for e in it.evidence %}<div class="small text-muted">{{ e }}</div>{% endfor %}</td>
-                  <td>{% if it.status == 'Success' %}<span class="badge badge-success">Success</span>{% elif it.status == 'Failed' %}<span class="badge badge-danger">Failed</span>{% elif it.status == 'ToBeTest' %}<span class="badge badge-warning">To be tested</span>{% else %}<span class="badge badge-secondary">N/A</span>{% endif %}</td>
+                  <td>{% if it.status == 'Success' %}<span class="badge badge-success">Success</span>{% elif it.status == 'Failed' %}<span class="badge badge-danger">Failed</span>{% elif it.status == 'ToBeTest' %}<span class="badge badge-warning">To be tested</span>{% else %}<span class="badge badge-secondary">N/A</span>{% endif %}
+                    {% if it.review and it.review.status != it.automated_status %}<div class="small text-muted">Automated: {{ it.automated_status }}</div>{% endif %}</td>
+                  <td>
+                    {% if it.review %}
+                      <div class="small">{{ it.review.status }} by {{ it.review.reviewer }} on {{ it.review.updated_at }}{% if it.review.note %}: {{ it.review.note }}{% endif %}</div>
+                      {% if it.automated_status == 'Failed' and it.review.status != 'Failed' %}<div class="small text-danger">Automated Failed is kept. Resolve the finding to change it.</div>{% endif %}
+                    {% endif %}
+                    {% if can_review %}
+                      <div class="form-inline">
+                        <select class="form-control form-control-sm cl-review-status mr-1">
+                          <option value="">Clear</option>
+                          <option value="Success"{% if it.review.status == 'Success' %} selected{% endif %}>Success</option>
+                          <option value="Failed"{% if it.review.status == 'Failed' %} selected{% endif %}>Failed</option>
+                          <option value="ToBeTest"{% if it.review.status == 'ToBeTest' %} selected{% endif %}>To be tested</option>
+                          <option value="NotApplicable"{% if it.review.status == 'NotApplicable' %} selected{% endif %}>N/A</option>
+                        </select>
+                        <input class="form-control form-control-sm cl-review-note mr-1" maxlength="2000" placeholder="Note" value="{{ it.review.note }}">
+                        <button type="button" class="btn btn-sm btn-outline-primary cl-save">Save</button>
+                        <span class="small text-danger ml-1 cl-error"></span>
+                      </div>
+                    {% endif %}
+                  </td>
                 </tr>
               {% endfor %}
               </tbody>
@@ -118,6 +141,34 @@ sidebar-collapse
       r.classList.toggle('hidden', !ok);
     });
   }
+  document.querySelectorAll('.cl-save').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var row = btn.closest('tr');
+      var err = row.querySelector('.cl-error');
+      var body = new URLSearchParams({
+        standard: row.dataset.standard,
+        item_id: row.dataset.id,
+        status: row.querySelector('.cl-review-status').value,
+        note: row.querySelector('.cl-review-note').value
+      });
+      err.textContent = '';
+      try {
+        var resp = await fetch("{% url 'checklist_review' checksum=hash %}", {
+          method: 'POST',
+          headers: {'X-CSRFToken': '{{ csrf_token }}'},
+          body: body
+        });
+        var data = await resp.json();
+        if (resp.ok && data.status === 'ok') {
+          window.location.reload();
+        } else {
+          err.textContent = data.message || 'Could not save';
+        }
+      } catch (e) {
+        err.textContent = 'Could not save';
+      }
+    });
+  });
   document.getElementById('cl-status').addEventListener('change', applyFilter);
   document.getElementById('cl-search').addEventListener('input', applyFilter);
 </script>

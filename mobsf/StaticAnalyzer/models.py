@@ -9,6 +9,7 @@ class DjangoPermissions(Enum):
     SCAN = ('can_scan', 'Scan Files')
     SUPPRESS = ('can_suppress', 'Suppress Findings')
     DELETE = ('can_delete', 'Delete Scans')
+    REVIEW = ('can_review', 'Review Checklists')
 
 
 P = DjangoPermissions
@@ -169,6 +170,24 @@ class SuppressFindings(models.Model):
     SUPPRESS_RULE_ID = models.TextField(default=[])
     SUPPRESS_FILES = models.TextField(default={})
     SUPPRESS_TYPE = models.TextField(default='')
+
+
+class ChecklistReview(models.Model):
+    """Tester decision for one MASVS/MASWE/MASTG checklist item."""
+
+    class Meta:
+        """Meta class for ChecklistReview model."""
+
+        permissions = (P.REVIEW.value,)
+        unique_together = (('MD5', 'STANDARD', 'ITEM_ID'),)
+
+    MD5 = models.CharField(max_length=32, db_index=True)
+    STANDARD = models.CharField(max_length=10)
+    ITEM_ID = models.CharField(max_length=40)
+    STATUS = models.CharField(max_length=20)
+    NOTE = models.TextField(default='')
+    REVIEWER = models.CharField(max_length=150, default='')
+    UPDATED_AT = models.DateTimeField(default=timezone.now)
 
 
 class EnqueuedTask(models.Model):

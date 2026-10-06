@@ -85,3 +85,27 @@ class ViewSourceAndroidApiForm(AttackDetect, AndroidChecks, APIChecks):
 
 class ViewSourceAndroidForm(AttackDetect, AndroidChecks, WebChecks):
     pass
+
+
+STANDARDS = ('MASVS', 'MASWE', 'MASTG')
+ITEM_STATUSES = ('Success', 'Failed', 'ToBeTest', 'NotApplicable')
+
+
+class ChecklistReviewForm(forms.Form):
+    """Tester decision for a checklist item. Empty status clears it."""
+
+    standard = forms.ChoiceField(choices=[(s, s) for s in STANDARDS])
+    item_id = forms.RegexField(
+        regex=r'^(MASVS-[A-Z]+-\d{1,2}|MASWE-\d{4}|MASTG-TEST-\d{4})$',
+        max_length=40)
+    status = forms.ChoiceField(
+        required=False,
+        choices=[('', 'Clear')] + [(s, s) for s in ITEM_STATUSES])
+    note = forms.CharField(required=False, max_length=2000)
+
+
+class ChecklistExportForm(forms.Form):
+    """Export format for a checklist."""
+
+    format = forms.ChoiceField(  # noqa: A003
+        choices=[('json', 'json'), ('csv', 'csv')])
