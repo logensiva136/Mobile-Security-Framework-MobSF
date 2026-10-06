@@ -324,26 +324,11 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
-1. `mobsf/utils/masvs_parser.py` is a mock that returns hardcoded placeholder controls
-   (`A1.1`, `A2.1`, ...) and parses nothing. `DynamicAnalyzer/checks/masvs_checker.py`
-   and `MASWEChecker.py` build on that placeholder and are not reached by any view or
-   route. Replace them with the data-driven approach above.
-2. `DynamicAnalyzer/models.py` and `admin.py` hold dataclasses and an orchestrator, not
-   Django models; `django.contrib.admin` is disabled. `checklist.py` imports
-   `CheckStatus` from `DynamicAnalyzer.models`, coupling a static feature to the dynamic
-   app. Move the enum into the checklist module. `mobsf/utils/` has no `__init__.py`
-   and is easily confused with `mobsf/MobSF/utils.py`.
-3. `build_checklist` uses MASVS v1 requirement counts (`MSTG_COUNTS`) and fabricated
+1. `build_checklist` uses MASVS v1 requirement counts (`MSTG_COUNTS`) and fabricated
    `MASWE-<CATEGORY>` ids, marks items `Success` when a rule exists (`_tested` greps the
    rule files line by line for `masvs`), and gives every control in a category the same
    status. See Standards Correctness.
-4. `checklist_page` wraps a nested view in `login_required` on every call, imports inside
-   the function, and has no method or permission decorator, no REST endpoint, and no PDF
-   report section. `checklist.html` uses `{{ summary_json|safe }}`; switch to
-   `json_script`.
-5. New files fail lint: double quotes and lines over 88 columns in
-   `masvs_checker.py`, `masvs_parser.py`, `MASWEChecker.py` and the tests under
-   `tests/`, which are also not collected by `tox -e test`.
-6. `plans/mobsf_masvs_integration_plan.md` is a single line with literal `\n` text and
-   describes the PDF-parsing design that this section replaces. Rewrite or delete it.
-7. There is no tester workflow yet (per-scan status, notes, evidence, export).
+2. `checklist_page` has no `@permission_required`, no REST endpoint, and no PDF report
+   section. The tests in `mobsf/StaticAnalyzer/test_checklist.py` cover only
+   `build_checklist`; there are no view or API tests yet.
+3. There is no tester workflow yet (per-scan status, notes, evidence, export).

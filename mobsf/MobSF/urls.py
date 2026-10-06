@@ -40,7 +40,7 @@ from mobsf.StaticAnalyzer import tests
 from mobsf.StaticAnalyzer.views.common import (
     appsec,
     async_task,
-    checklist_view,
+    checklist,
     pdf,
     shared_func,
     suppression,
@@ -269,7 +269,7 @@ if settings.API_ONLY == '0':
         # Shared
         re_path(fr'^pdf/{checksum_regex}/$', pdf.pdf, name='pdf'),
         re_path(fr'^checklist/{checksum_regex}/$',
-                checklist_view.checklist_page,
+                checklist.checklist_page,
                 name='checklist'),
         re_path(fr'^appsec_dashboard/{checksum_regex}/$',
                 appsec.appsec_dashboard,
