@@ -347,11 +347,16 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   the automated status but never hides an automated `Failed`; both and the reviewer are
   kept. `checklist/<md5>/export/?format=json|csv` exports everything; CSV cells are
   neutralized against spreadsheet formulas.
+- Evidence files: `checklist_evidence.py` (`ChecklistEvidence` model, files under
+  `MOBSF_HOME/evidence/<md5>/<random>.<ext>`). Upload needs `Permissions.REVIEW`. Allowed:
+  png, jpg, gif, pdf, txt, log, json, checked by extension and content (magic bytes or
+  UTF-8 text), max 5 MB and 10 files per item. Original names are sanitized for display
+  only. Downloads are attachments with `nosniff`. `delete_scan` calls
+  `delete_checklist_data()` so reviews and evidence never outlive a scan.
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
 1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
    Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
-2. Tester decisions have no REST write endpoint and no evidence file uploads yet
-   (uploads need size/type limits, storage under `MOBSF_HOME` and `sanitize_filename`).
-   Reviews are not shown in the PDF report.
+2. Tester decisions and evidence have no REST write endpoint, and reviews and evidence
+   are not shown in the PDF report. Evidence is not virus scanned.

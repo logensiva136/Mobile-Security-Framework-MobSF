@@ -95,7 +95,19 @@ sidebar-collapse
                       <div class="small">{{ it.review.status }} by {{ it.review.reviewer }} on {{ it.review.updated_at }}{% if it.review.note %}: {{ it.review.note }}{% endif %}</div>
                       {% if it.automated_status == 'Failed' and it.review.status != 'Failed' %}<div class="small text-danger">Automated Failed is kept. Resolve the finding to change it.</div>{% endif %}
                     {% endif %}
+                    {% for f in it.files %}
+                      <div class="small" data-evidence="{{ f.id }}">
+                        <i class="fas fa-paperclip"></i>
+                        <a href="{% url 'checklist_evidence_download' checksum=hash evidence_id=f.id %}">{{ f.name }}</a>
+                        ({{ f.size_kb }} KB, {{ f.uploader }}, {{ f.uploaded_at }})
+                        {% if can_review %}<a href="#" class="cl-del-evidence text-danger" data-url="{% url 'checklist_evidence_delete' checksum=hash evidence_id=f.id %}">remove</a>{% endif %}
+                      </div>
+                    {% endfor %}
                     {% if can_review %}
+                      <div class="form-inline mt-1">
+                        <input type="file" class="form-control-file form-control-sm cl-evidence-file mr-1" accept=".png,.jpg,.jpeg,.gif,.pdf,.txt,.log,.json">
+                        <button type="button" class="btn btn-sm btn-outline-secondary cl-upload">Attach</button>
+                      </div>
                       <div class="form-inline">
                         <select class="form-control form-control-sm cl-review-status mr-1">
                           <option value="">Clear</option>
@@ -167,6 +179,47 @@ sidebar-collapse
       } catch (e) {
         err.textContent = 'Could not save';
       }
+    });
+  });
+  async function post(url, body, err) {
+    err.textContent = '';
+    try {
+      var resp = await fetch(url, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        body: body
+      });
+      var data = await resp.json();
+      if (resp.ok && data.status === 'ok') {
+        window.location.reload();
+      } else {
+        err.textContent = data.message || 'Request failed';
+      }
+    } catch (e) {
+      err.textContent = 'Request failed';
+    }
+  }
+  document.querySelectorAll('.cl-upload').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var row = btn.closest('tr');
+      var err = row.querySelector('.cl-error');
+      var input = row.querySelector('.cl-evidence-file');
+      if (!input.files.length) {
+        err.textContent = 'Choose a file first';
+        return;
+      }
+      var body = new FormData();
+      body.append('standard', row.dataset.standard);
+      body.append('item_id', row.dataset.id);
+      body.append('file', input.files[0]);
+      post("{% url 'checklist_evidence_upload' checksum=hash %}", body, err);
+    });
+  });
+  document.querySelectorAll('.cl-del-evidence').forEach(function (link) {
+    link.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var err = link.closest('tr').querySelector('.cl-error');
+      post(link.dataset.url, new URLSearchParams(), err);
     });
   });
   document.getElementById('cl-status').addEventListener('change', applyFilter);

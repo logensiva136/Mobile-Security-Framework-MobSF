@@ -61,6 +61,7 @@ from mobsf.StaticAnalyzer.forms import (
     ChecklistReviewForm,
 )
 from mobsf.StaticAnalyzer.models import (
+    ChecklistEvidence,
     ChecklistReview,
     StaticAnalyzerAndroid,
     StaticAnalyzerIOS,
@@ -149,12 +150,15 @@ def _item(std, item, status, evidence=None):
         'evidence': evidence or [],
         'url': item.get('url', ''),
         'review': None,
+        'files': [],
     }
 
 
-def _with_review(item, reviews):
+def _with_review(item, reviews, files=None):
     """Apply a tester decision, never hiding an automated Failed."""
-    review = (reviews or {}).get((item['standard'], item['id']))
+    key = (item['standard'], item['id'])
+    item['files'] = (files or {}).get(key, [])
+    review = (reviews or {}).get(key)
     if review:
         item['review'] = review
         if item['automated_status'] != CheckStatus.FAILED.value:
@@ -212,10 +216,12 @@ def _masvs_status(weaknesses, maswe_status):
     return CheckStatus.TO_BE_TEST
 
 
-def build_checklist(data, platform, standards=None, reviews=None):
+def build_checklist(
+        data, platform, standards=None, reviews=None, files=None):
     """Build MASVS, MASWE and MASTG checklists from a static context.
 
-    reviews maps (standard, item id) to a tester decision dict.
+    reviews maps (standard, item id) to a tester decision dict and
+    files maps it to the list of attached evidence files.
     """
     standards = standards or load_standards()
     applicable = platform in RULE_FILES
@@ -229,7 +235,8 @@ def build_checklist(data, platform, standards=None, reviews=None):
             status, ev = _maswe_status(weak, tested, failed, passed, review)
         else:
             status, ev = na, []
-        item = _with_review(_item('MASWE', weak, status, ev), reviews)
+        item = _with_review(
+            _item('MASWE', weak, status, ev), reviews, files)
         maswe_status[weak['id']] = CheckStatus(item['status'])
         maswe_items.append(item)
 
@@ -243,7 +250,8 @@ def build_checklist(data, platform, standards=None, reviews=None):
         related = [w for w in weaknesses
                    if maswe_status.get(w) == CheckStatus.FAILED]
         masvs_items.append(
-            _with_review(_item('MASVS', ctl, status, related), reviews))
+            _with_review(
+                _item('MASVS', ctl, status, related), reviews, files))
 
     parent = {}
     for weak in standards['maswe']:
@@ -261,7 +269,8 @@ def build_checklist(data, platform, standards=None, reviews=None):
                   for w in parent.get(test['id'], [])
                   if maswe_status.get(w) == CheckStatus.FAILED]
         mastg_items.append(
-            _with_review(_item('MASTG', test, status, ev), reviews))
+            _with_review(
+                _item('MASTG', test, status, ev), reviews, files))
 
     return {
         'source': standards_info(standards),
@@ -271,7 +280,7 @@ def build_checklist(data, platform, standards=None, reviews=None):
     }
 
 
-def _load_scan(checksum):
+def load_scan(checksum):
     """Return (static analysis context, platform) or (None, None)."""
     android = StaticAnalyzerAndroid.objects.filter(MD5=checksum).first()
     if android:
@@ -295,11 +304,25 @@ def _load_reviews(checksum):
     }
 
 
+def load_files(checksum):
+    """Return evidence file details keyed by (standard, item id)."""
+    files = {}
+    for row in ChecklistEvidence.objects.filter(MD5=checksum).order_by('id'):
+        files.setdefault((row.STANDARD, row.ITEM_ID), []).append({
+            'id': row.id,
+            'name': row.FILE_NAME,
+            'size_kb': max(1, row.SIZE // 1024),
+            'uploader': row.UPLOADER,
+            'uploaded_at': row.UPLOADED_AT.strftime('%Y-%m-%d %H:%M UTC'),
+        })
+    return files
+
+
 def _checklist_response(request, checksum, api):
     """Build the checklist page or API response for a scan hash."""
     if not is_md5(checksum):
         return print_n_send_error_response(request, 'Invalid Hash', api)
-    data, platform = _load_scan(checksum)
+    data, platform = load_scan(checksum)
     if not data:
         msg = 'Report not found or supported'
         if api:
@@ -307,7 +330,8 @@ def _checklist_response(request, checksum, api):
         return print_n_send_error_response(request, msg, api)
     refresh_if_stale()
     checklist = build_checklist(
-        data, platform, reviews=_load_reviews(checksum))
+        data, platform, reviews=_load_reviews(checksum),
+        files=load_files(checksum))
     if api:
         return {
             'hash': checksum,
@@ -362,7 +386,7 @@ def checklist_review(request, checksum):
     form = ChecklistReviewForm(request.POST)
     if not form.is_valid():
         return JsonResponse(FormUtil.errors_message(form), status=400)
-    data, platform = _load_scan(checksum)
+    data, platform = load_scan(checksum)
     if not data:
         return _json_error('Report not found or supported', 404)
     std = form.cleaned_data['standard']
@@ -408,7 +432,7 @@ def _export_csv(checklist):
     writer = csv.writer(out)
     writer.writerow([
         'standard', 'id', 'title', 'status', 'automated_status',
-        'evidence', 'reviewer', 'reviewed_at', 'note', 'url'])
+        'evidence', 'files', 'reviewer', 'reviewed_at', 'note', 'url'])
     for std in ('MASVS', 'MASWE', 'MASTG'):
         for item in checklist[std]['items']:
             review = item['review'] or {}
@@ -416,6 +440,7 @@ def _export_csv(checklist):
                 item['standard'], item['id'], item['title'],
                 item['status'], item['automated_status'],
                 '; '.join(item['evidence']),
+                '; '.join(f['name'] for f in item['files']),
                 review.get('reviewer'), review.get('updated_at'),
                 review.get('note'), item['url'])])
     return out.getvalue()
@@ -430,12 +455,13 @@ def checklist_export(request, checksum):
     form = ChecklistExportForm(request.GET)
     if not form.is_valid():
         return JsonResponse(FormUtil.errors_message(form), status=400)
-    data, platform = _load_scan(checksum)
+    data, platform = load_scan(checksum)
     if not data:
         return print_n_send_error_response(
             request, 'Report not found or supported', False)
     checklist = build_checklist(
-        data, platform, reviews=_load_reviews(checksum))
+        data, platform, reviews=_load_reviews(checksum),
+        files=load_files(checksum))
     fmt = form.cleaned_data['format']
     name = sanitize_filename(
         f'{data.get("app_name") or checksum[:8]}_checklist.{fmt}')

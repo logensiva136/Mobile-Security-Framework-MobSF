@@ -41,6 +41,7 @@ from mobsf.StaticAnalyzer.views.common import (
     appsec,
     async_task,
     checklist,
+    checklist_evidence,
     pdf,
     shared_func,
     suppression,
@@ -278,6 +279,19 @@ if settings.API_ONLY == '0':
         re_path(fr'^checklist/{checksum_regex}/export/$',
                 checklist.checklist_export,
                 name='checklist_export'),
+        re_path(fr'^checklist/{checksum_regex}/evidence/$',
+                checklist_evidence.checklist_evidence_upload,
+                name='checklist_evidence_upload'),
+        re_path(
+            fr'^checklist/{checksum_regex}/evidence/'
+            r'(?P<evidence_id>[0-9]+)/$',
+            checklist_evidence.checklist_evidence_download,
+            name='checklist_evidence_download'),
+        re_path(
+            fr'^checklist/{checksum_regex}/evidence/'
+            r'(?P<evidence_id>[0-9]+)/delete/$',
+            checklist_evidence.checklist_evidence_delete,
+            name='checklist_evidence_delete'),
         re_path(fr'^appsec_dashboard/{checksum_regex}/$',
                 appsec.appsec_dashboard,
                 name='appsec_dashboard'),

@@ -45,6 +45,9 @@ from mobsf.StaticAnalyzer.models import (
     StaticAnalyzerIOS,
     StaticAnalyzerWindows,
 )
+from mobsf.StaticAnalyzer.views.common.checklist_data import (
+    delete_checklist_data,
+)
 from mobsf.DynamicAnalyzer.views.common.shared import (
     invalid_params,
     send_response,
@@ -565,6 +568,7 @@ def delete_scan(request, api=False):
         StaticAnalyzerAndroid.objects.filter(MD5=md5_hash).delete()
         StaticAnalyzerIOS.objects.filter(MD5=md5_hash).delete()
         StaticAnalyzerWindows.objects.filter(MD5=md5_hash).delete()
+        delete_checklist_data(md5_hash)
         # Delete Upload Dir Contents
         app_upload_dir = os.path.join(settings.UPLD_DIR, md5_hash)
         if is_dir_exists(app_upload_dir):

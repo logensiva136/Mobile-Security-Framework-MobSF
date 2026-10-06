@@ -190,6 +190,21 @@ class ChecklistReview(models.Model):
     UPDATED_AT = models.DateTimeField(default=timezone.now)
 
 
+class ChecklistEvidence(models.Model):
+    """Evidence file attached to a checklist item."""
+
+    MD5 = models.CharField(max_length=32, db_index=True)
+    STANDARD = models.CharField(max_length=10)
+    ITEM_ID = models.CharField(max_length=40)
+    FILE_NAME = models.CharField(max_length=100)
+    STORED_NAME = models.CharField(max_length=64)
+    CONTENT_TYPE = models.CharField(max_length=60)
+    SIZE = models.IntegerField(default=0)
+    SHA256 = models.CharField(max_length=64, default='')
+    UPLOADER = models.CharField(max_length=150, default='')
+    UPLOADED_AT = models.DateTimeField(default=timezone.now)
+
+
 class EnqueuedTask(models.Model):
     task_id = models.CharField(max_length=255)
     checksum = models.CharField(max_length=255)

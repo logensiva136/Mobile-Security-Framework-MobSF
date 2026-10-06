@@ -91,17 +91,28 @@ STANDARDS = ('MASVS', 'MASWE', 'MASTG')
 ITEM_STATUSES = ('Success', 'Failed', 'ToBeTest', 'NotApplicable')
 
 
-class ChecklistReviewForm(forms.Form):
-    """Tester decision for a checklist item. Empty status clears it."""
+class ChecklistItemForm(forms.Form):
+    """Identify one checklist item."""
 
     standard = forms.ChoiceField(choices=[(s, s) for s in STANDARDS])
     item_id = forms.RegexField(
         regex=r'^(MASVS-[A-Z]+-\d{1,2}|MASWE-\d{4}|MASTG-TEST-\d{4})$',
         max_length=40)
+
+
+class ChecklistReviewForm(ChecklistItemForm):
+    """Tester decision for a checklist item. Empty status clears it."""
+
     status = forms.ChoiceField(
         required=False,
         choices=[('', 'Clear')] + [(s, s) for s in ITEM_STATUSES])
     note = forms.CharField(required=False, max_length=2000)
+
+
+class ChecklistEvidenceForm(ChecklistItemForm):
+    """Evidence file for a checklist item."""
+
+    file = forms.FileField()
 
 
 class ChecklistExportForm(forms.Form):
