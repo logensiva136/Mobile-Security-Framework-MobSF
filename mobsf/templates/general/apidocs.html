@@ -36,6 +36,8 @@
               <li><code>api/v1/delete_scan</code> - <a href="#delete-scan-api">Delete a Scan</a></li>
               <li><code>api/v1/scorecard</code> - <a href="#scorecard-api">App Scorecard</a></li>
               <li><code>api/v1/checklist</code> - <a href="#checklist-api">MASVS, MASWE and MASTG Checklists</a></li>
+              <li><code>api/v1/checklist_review</code> - <a href="#checklist-review-api">Save Checklist Review</a></li>
+              <li><code>api/v1/checklist_evidence</code> - <a href="#checklist-evidence-api">Attach Checklist Evidence</a></li>
               <li><code>api/v1/download_pdf</code> - <a href="#generate-pdf-report-api">Download PDF Report</a></li>
               <li><code>api/v1/report_json</code> - <a href="#generate-json-report-api">Generate JSON Report</a></li>
               <li><code>api/v1/view_source</code> - <a href="#view-source-api">View Source Files</a></li>
@@ -696,6 +698,205 @@
                 <ul>
                   <li>
                     <pre><code>curl -X POST --url http://localhost:8000/api/v1/checklist --data &quot;hash=82ab8b2193b3cfb1c737e3a786be363a&quot; -H &quot;X-Mobsf-Api-Key: {{ api_key}}&quot;
+                  </code></pre>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+
+
+            <hr />
+            <h2><a id="checklist-review-api"></a><strong>Checklist Review API</strong></h2>
+            <p>Save or clear a tester decision for one checklist item. An automated Failed is never hidden by a decision. Send an empty <code>status</code> to clear.</p>
+            <ul>
+              <li>
+                <p><strong>URL:</strong> <code>/api/v1/checklist_review</code></p>
+              </li>
+              <li>
+                <p><strong>Method:</strong> <code>POST</code></p>
+              </li>
+              <li>
+                <p><strong>Header:</strong> <code>Authorization: &lt;api_key&gt;</code> <strong>Or</strong> <code>X-Mobsf-Api-Key: &lt;api_key&gt;</code></p>
+              </li>
+              <li>
+                <p><strong>Data Params</strong></p>
+              </li>
+            </ul>
+            <table class="table table-striped table-bordered">
+              <thead>
+                <tr>
+                  <th>Param Name</th>
+                  <th>Param Value</th>
+                  <th>Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>hash</td>
+                  <td>hash of the scan</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td>standard</td>
+                  <td>MASVS, MASWE or MASTG</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td>item_id</td>
+                  <td>for example MASWE-0001</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td>status</td>
+                  <td>Success, Failed, ToBeTest, NotApplicable or empty</td>
+                  <td>No</td>
+                </tr>
+                <tr>
+                  <td>note</td>
+                  <td>text up to 2000 characters</td>
+                  <td>No</td>
+                </tr>
+              </tbody>
+            </table>
+            <br />
+            <ul>
+              <li>
+                <p><strong>Success Response:</strong></p>
+                <ul>
+                  <li>
+                    <strong>Code:</strong> <code>200</code><br />
+                    <strong>Content-Type:</strong> <code>application/json; charset=utf-8</code> <br />
+                    <strong>Content:</strong> <code>JSON Contents (checklist.MASVS, checklist.MASWE, checklist.MASTG, checklist.source)</code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p><strong>Error Response:</strong></p>
+                <ul>
+                  <li>
+                    <strong>Code:</strong> <code>500 Internal Server Error</code> or <code>405 Method Not Allowed</code> or <code>422 Unprocessable Entity</code> <br />
+                    <strong>Content-Type:</strong> <code>application/json; charset=utf-8</code> <br />
+                    <strong>Content:</strong> <code>{&quot;error&quot;: &lt;error message&gt; }</code>
+                  </li>
+                </ul>
+                <p>OR</p>
+                <ul>
+                  <li>
+                    <strong>Code:</strong> <code>401 Unauthorized</code> <br />
+                    <strong>Content-Type:</strong> <code>application/json; charset=utf-8</code> <br />
+                    <strong>Content:</strong> <code>{&quot;error&quot;: &quot;You are unauthorized to make this request.&quot; }</code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p><strong>Sample Call:</strong></p>
+                <ul>
+                  <li>
+                    <pre><code>curl -X POST --url http://localhost:8000/api/v1/checklist_review --data &quot;hash=82ab8b2193b3cfb1c737e3a786be363a&quot; -H &quot;Authorization: {{ api_key}}&quot;
+                  </code></pre>
+                  </li>
+                </ul>
+                <p>OR</p>
+                <ul>
+                  <li>
+                    <pre><code>curl -X POST --url http://localhost:8000/api/v1/checklist_review --data &quot;hash=82ab8b2193b3cfb1c737e3a786be363a&quot; -H &quot;X-Mobsf-Api-Key: {{ api_key}}&quot;
+                  </code></pre>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+
+
+            <hr />
+            <h2><a id="checklist-evidence-api"></a><strong>Checklist Evidence API</strong></h2>
+            <p>Attach an evidence file (png, jpg, gif, pdf, txt, log, json, up to 5 MB, 10 per item) to a checklist item. Send as <code>multipart/form-data</code>.</p>
+            <ul>
+              <li>
+                <p><strong>URL:</strong> <code>/api/v1/checklist_evidence</code></p>
+              </li>
+              <li>
+                <p><strong>Method:</strong> <code>POST</code></p>
+              </li>
+              <li>
+                <p><strong>Header:</strong> <code>Authorization: &lt;api_key&gt;</code> <strong>Or</strong> <code>X-Mobsf-Api-Key: &lt;api_key&gt;</code></p>
+              </li>
+              <li>
+                <p><strong>Data Params</strong></p>
+              </li>
+            </ul>
+            <table class="table table-striped table-bordered">
+              <thead>
+                <tr>
+                  <th>Param Name</th>
+                  <th>Param Value</th>
+                  <th>Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>hash</td>
+                  <td>hash of the scan</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td>standard</td>
+                  <td>MASVS, MASWE or MASTG</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td>item_id</td>
+                  <td>for example MASWE-0001</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td>file</td>
+                  <td>the evidence file</td>
+                  <td>Yes</td>
+                </tr>
+              </tbody>
+            </table>
+            <br />
+            <ul>
+              <li>
+                <p><strong>Success Response:</strong></p>
+                <ul>
+                  <li>
+                    <strong>Code:</strong> <code>200</code><br />
+                    <strong>Content-Type:</strong> <code>application/json; charset=utf-8</code> <br />
+                    <strong>Content:</strong> <code>JSON Contents (checklist.MASVS, checklist.MASWE, checklist.MASTG, checklist.source)</code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p><strong>Error Response:</strong></p>
+                <ul>
+                  <li>
+                    <strong>Code:</strong> <code>500 Internal Server Error</code> or <code>405 Method Not Allowed</code> or <code>422 Unprocessable Entity</code> <br />
+                    <strong>Content-Type:</strong> <code>application/json; charset=utf-8</code> <br />
+                    <strong>Content:</strong> <code>{&quot;error&quot;: &lt;error message&gt; }</code>
+                  </li>
+                </ul>
+                <p>OR</p>
+                <ul>
+                  <li>
+                    <strong>Code:</strong> <code>401 Unauthorized</code> <br />
+                    <strong>Content-Type:</strong> <code>application/json; charset=utf-8</code> <br />
+                    <strong>Content:</strong> <code>{&quot;error&quot;: &quot;You are unauthorized to make this request.&quot; }</code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p><strong>Sample Call:</strong></p>
+                <ul>
+                  <li>
+                    <pre><code>curl -X POST --url http://localhost:8000/api/v1/checklist_evidence --data &quot;hash=82ab8b2193b3cfb1c737e3a786be363a&quot; -H &quot;Authorization: {{ api_key}}&quot;
+                  </code></pre>
+                  </li>
+                </ul>
+                <p>OR</p>
+                <ul>
+                  <li>
+                    <pre><code>curl -X POST --url http://localhost:8000/api/v1/checklist_evidence --data &quot;hash=82ab8b2193b3cfb1c737e3a786be363a&quot; -H &quot;X-Mobsf-Api-Key: {{ api_key}}&quot;
                   </code></pre>
                   </li>
                 </ul>

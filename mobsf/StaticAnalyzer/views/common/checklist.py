@@ -58,16 +58,22 @@ from mobsf.MobSF.views.authorization import (
 )
 from mobsf.StaticAnalyzer.forms import (
     ChecklistExportForm,
+    ChecklistItemForm,
     ChecklistReviewForm,
 )
 from mobsf.StaticAnalyzer.models import (
     ChecklistEvidence,
     ChecklistReview,
+    ChecklistReviewLog,
     StaticAnalyzerAndroid,
     StaticAnalyzerIOS,
 )
 from mobsf.StaticAnalyzer.views.android.db_interaction import (
     get_context_from_db_entry as adb)
+from mobsf.StaticAnalyzer.views.common.checklist_data import (
+    actor_name,
+    log_action,
+)
 from mobsf.StaticAnalyzer.views.common.mas_standards import (
     load_standards,
     refresh_if_stale,
@@ -291,7 +297,7 @@ def load_scan(checksum):
     return None, None
 
 
-def _load_reviews(checksum):
+def load_reviews(checksum):
     """Return tester decisions for a scan keyed by (standard, item id)."""
     return {
         (r.STANDARD, r.ITEM_ID): {
@@ -330,7 +336,7 @@ def _checklist_response(request, checksum, api):
         return print_n_send_error_response(request, msg, api)
     refresh_if_stale()
     checklist = build_checklist(
-        data, platform, reviews=_load_reviews(checksum),
+        data, platform, reviews=load_reviews(checksum),
         files=load_files(checksum))
     if api:
         return {
@@ -379,7 +385,7 @@ def _json_error(message, status):
 @login_required
 @require_http_methods(['POST'])
 @permission_required(Permissions.REVIEW)
-def checklist_review(request, checksum):
+def checklist_review(request, checksum, api=False):
     """Save or clear a tester decision for one checklist item."""
     if not is_md5(checksum):
         return _json_error('Invalid Hash', 400)
@@ -396,26 +402,29 @@ def checklist_review(request, checksum):
         return _json_error('Unknown checklist item', 400)
     status = form.cleaned_data['status']
     keys = {'MD5': checksum, 'STANDARD': std, 'ITEM_ID': item_id}
+    actor = actor_name(request, api)
     if not status:
         ChecklistReview.objects.filter(**keys).delete()
+        log_action(checksum, std, item_id, 'clear', actor)
         return JsonResponse({'status': 'ok', 'review': None})
-    reviewer = (request.user.get_username()
-                if request.user.is_authenticated else 'anonymous')
     ChecklistReview.objects.update_or_create(
         defaults={
             'STATUS': status,
             'NOTE': form.cleaned_data['note'],
-            'REVIEWER': reviewer,
+            'REVIEWER': actor,
             'UPDATED_AT': timezone.now(),
         },
         **keys)
+    log_action(
+        checksum, std, item_id, 'set', actor,
+        status, form.cleaned_data['note'])
     logger.info(
         'Checklist review saved for %s %s',
         sanitize_for_logging(checksum),
         sanitize_for_logging(item_id))
     return JsonResponse({
         'status': 'ok',
-        'review': _load_reviews(checksum)[(std, item_id)],
+        'review': load_reviews(checksum)[(std, item_id)],
     })
 
 
@@ -460,7 +469,7 @@ def checklist_export(request, checksum):
         return print_n_send_error_response(
             request, 'Report not found or supported', False)
     checklist = build_checklist(
-        data, platform, reviews=_load_reviews(checksum),
+        data, platform, reviews=load_reviews(checksum),
         files=load_files(checksum))
     fmt = form.cleaned_data['format']
     name = sanitize_filename(
@@ -478,3 +487,25 @@ def checklist_export(request, checksum):
     response = HttpResponse(body, content_type=ctype)
     response['Content-Disposition'] = f'attachment; filename="{name}"'
     return response
+
+
+@login_required
+@require_http_methods(['GET'])
+def checklist_history(request, checksum):
+    """Return the latest tester actions on one checklist item."""
+    if not is_md5(checksum):
+        return _json_error('Invalid Hash', 400)
+    form = ChecklistItemForm(request.GET)
+    if not form.is_valid():
+        return JsonResponse(FormUtil.errors_message(form), status=400)
+    rows = ChecklistReviewLog.objects.filter(
+        MD5=checksum,
+        STANDARD=form.cleaned_data['standard'],
+        ITEM_ID=form.cleaned_data['item_id']).order_by('-id')[:50]
+    return JsonResponse({'status': 'ok', 'history': [{
+        'action': r.ACTION,
+        'status': r.STATUS,
+        'note': r.NOTE,
+        'actor': r.ACTOR,
+        'at': r.CREATED_AT.strftime('%Y-%m-%d %H:%M UTC'),
+    } for r in rows]})

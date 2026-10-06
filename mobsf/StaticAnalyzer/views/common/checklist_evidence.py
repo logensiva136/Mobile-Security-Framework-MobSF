@@ -36,7 +36,9 @@ from mobsf.StaticAnalyzer.views.common.checklist import (
     load_scan,
 )
 from mobsf.StaticAnalyzer.views.common.checklist_data import (
+    actor_name,
     evidence_dir,
+    log_action,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,7 +109,7 @@ def evidence_item(row):
 @login_required
 @require_http_methods(['POST'])
 @permission_required(Permissions.REVIEW)
-def checklist_evidence_upload(request, checksum):
+def checklist_evidence_upload(request, checksum, api=False):
     """Attach an evidence file to a checklist item."""
     if not is_md5(checksum):
         return _error('Invalid Hash')
@@ -145,8 +147,7 @@ def checklist_evidence_upload(request, checksum):
     scan_dir.mkdir(parents=True, exist_ok=True)
     with open(target, 'xb') as fp:
         fp.write(content)
-    reviewer = (request.user.get_username()
-                if request.user.is_authenticated else 'anonymous')
+    actor = actor_name(request, api)
     row = ChecklistEvidence.objects.create(
         MD5=checksum,
         STANDARD=std,
@@ -156,8 +157,9 @@ def checklist_evidence_upload(request, checksum):
         CONTENT_TYPE=ALLOWED_TYPES[ext],
         SIZE=len(content),
         SHA256=hashlib.sha256(content).hexdigest(),
-        UPLOADER=reviewer,
+        UPLOADER=actor,
         UPLOADED_AT=timezone.now())
+    log_action(checksum, std, item_id, 'evidence_add', actor, note=display)
     logger.info(
         'Checklist evidence added for %s %s',
         sanitize_for_logging(checksum),
@@ -199,7 +201,8 @@ def checklist_evidence_download(request, checksum, evidence_id):
 @login_required
 @require_http_methods(['POST'])
 @permission_required(Permissions.REVIEW)
-def checklist_evidence_delete(request, checksum, evidence_id):
+def checklist_evidence_delete(
+        request, checksum, evidence_id, api=False):
     """Delete an evidence file and its record."""
     if not is_md5(checksum):
         return _error('Invalid Hash')
@@ -210,5 +213,8 @@ def checklist_evidence_delete(request, checksum, evidence_id):
     path = _file_path(row)
     if path:
         path.unlink()
+    log_action(
+        checksum, row.STANDARD, row.ITEM_ID, 'evidence_remove',
+        actor_name(request, api), note=row.FILE_NAME)
     row.delete()
     return JsonResponse({'status': 'ok'})

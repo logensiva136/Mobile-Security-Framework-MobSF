@@ -121,6 +121,8 @@ sidebar-collapse
                         <span class="small text-danger ml-1 cl-error"></span>
                       </div>
                     {% endif %}
+                    <a href="#" class="small cl-history-link">History</a>
+                    <div class="small text-muted cl-history" hidden></div>
                   </td>
                 </tr>
               {% endfor %}
@@ -220,6 +222,40 @@ sidebar-collapse
       ev.preventDefault();
       var err = link.closest('tr').querySelector('.cl-error');
       post(link.dataset.url, new URLSearchParams(), err);
+    });
+  });
+  document.querySelectorAll('.cl-history-link').forEach(function (link) {
+    link.addEventListener('click', async function (ev) {
+      ev.preventDefault();
+      var row = link.closest('tr');
+      var box = row.querySelector('.cl-history');
+      if (!box.hidden) {
+        box.hidden = true;
+        return;
+      }
+      var query = new URLSearchParams({
+        standard: row.dataset.standard,
+        item_id: row.dataset.id
+      });
+      box.textContent = 'Loading...';
+      box.hidden = false;
+      try {
+        var resp = await fetch(
+          "{% url 'checklist_history' checksum=hash %}?" + query);
+        var data = await resp.json();
+        box.textContent = '';
+        if (!data.history || !data.history.length) {
+          box.textContent = 'No tester actions yet.';
+        }
+        (data.history || []).forEach(function (h) {
+          var line = document.createElement('div');
+          line.textContent = h.at + ' - ' + h.actor + ': ' + h.action +
+            (h.status ? ' ' + h.status : '') + (h.note ? ' (' + h.note + ')' : '');
+          box.appendChild(line);
+        });
+      } catch (e) {
+        box.textContent = 'Could not load history';
+      }
     });
   });
   document.getElementById('cl-status').addEventListener('change', applyFilter);

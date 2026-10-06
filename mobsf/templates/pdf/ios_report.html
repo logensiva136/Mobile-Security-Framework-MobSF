@@ -186,18 +186,18 @@
         </tbody>
       </table>
       <table class="table table-bordered">
-        <thead><tr><th>MASVS control</th><th>Requirement</th><th>Status</th></tr></thead>
+        <thead><tr><th>MASVS control</th><th>Requirement</th><th>Status</th><th>Tester review</th></tr></thead>
         <tbody>
         {% for it in appsec.checklist.MASVS.items %}
-          <tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td></tr>
+          <tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td><td>{% if it.review %}{{ it.review.status }} by {{ it.review.reviewer }} on {{ it.review.updated_at }}{% if it.review.note %}: {{ it.review.note }}{% endif %}{% if it.automated_status == 'Failed' and it.review.status != 'Failed' %} (automated Failed kept){% endif %}{% endif %}{% for f in it.files %}<div>File: {{ f.name }}</div>{% endfor %}</td></tr>
         {% endfor %}
         </tbody>
       </table>
       <table class="table table-bordered">
-        <thead><tr><th>MASWE weakness</th><th>Title</th><th>Status</th></tr></thead>
+        <thead><tr><th>MASWE weakness</th><th>Title</th><th>Status</th><th>Tester review</th></tr></thead>
         <tbody>
         {% for it in appsec.checklist.MASWE.items %}
-          <tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td></tr>
+          <tr><td>{{ it.id }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td><td>{% if it.review %}{{ it.review.status }} by {{ it.review.reviewer }} on {{ it.review.updated_at }}{% if it.review.note %}: {{ it.review.note }}{% endif %}{% if it.automated_status == 'Failed' and it.review.status != 'Failed' %} (automated Failed kept){% endif %}{% endif %}{% for f in it.files %}<div>File: {{ f.name }}</div>{% endfor %}</td></tr>
         {% endfor %}
         </tbody>
       </table>

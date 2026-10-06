@@ -19,7 +19,11 @@ from mobsf.StaticAnalyzer.models import (
 )
 from mobsf.StaticAnalyzer.views.android.db_interaction import (
     get_context_from_db_entry as adb)
-from mobsf.StaticAnalyzer.views.common.checklist import build_checklist
+from mobsf.StaticAnalyzer.views.common.checklist import (
+    build_checklist,
+    load_files,
+    load_reviews,
+)
 from mobsf.StaticAnalyzer.views.ios.db_interaction import (
     get_context_from_db_entry as idb)
 from mobsf.MobSF.views.authentication import (
@@ -267,7 +271,10 @@ def get_android_dashboard(context, from_ctx=False):
             })
     common_fields(findings, data)
     findings['version_name'] = data.get('version_name', '')
-    findings['checklist'] = build_checklist(data, 'android')
+    findings['checklist'] = build_checklist(
+        data, 'android',
+        reviews=load_reviews(data.get('md5', '')),
+        files=load_files(data.get('md5', '')))
     return findings
 
 
@@ -360,7 +367,10 @@ def get_ios_dashboard(context, from_ctx=False):
             })
     common_fields(findings, data)
     findings['version_name'] = data.get('app_version', '')
-    findings['checklist'] = build_checklist(data, 'ios')
+    findings['checklist'] = build_checklist(
+        data, 'ios',
+        reviews=load_reviews(data.get('md5', '')),
+        files=load_files(data.get('md5', '')))
     return findings
 
 

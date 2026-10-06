@@ -353,10 +353,17 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   UTF-8 text), max 5 MB and 10 files per item. Original names are sanitized for display
   only. Downloads are attachments with `nosniff`. `delete_scan` calls
   `delete_checklist_data()` so reviews and evidence never outlive a scan.
+- Tester REST API: `api/v1/checklist_review` (POST hash, standard, item_id, status, note) and
+  `api/v1/checklist_evidence` (multipart, same fields plus file) reuse the web views with
+  `api=True`, so validation and limits are identical. API actions are attributed to `api`.
+- History: every set, clear, evidence add and evidence remove is logged in
+  `ChecklistReviewLog` (`checklist/<md5>/history/`, last 50 entries). The scorecard (web and
+  `api/v1/scorecard`) and both PDF reports carry reviews and evidence file names.
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
 1. Only weaknesses with legacy `MSTG-*` mappings (about two thirds) can be Success or
    Failed from automated rules. `_tested` still greps rule files for `masvs` lines.
-2. Tester decisions and evidence have no REST write endpoint, and reviews and evidence
-   are not shown in the PDF report. Evidence is not virus scanned.
+2. Evidence is not virus scanned and there is no per-scan storage quota. There is no
+   assignment of items to testers or "my items" filter yet. Evidence file contents are not
+   embedded in the PDF (names only).

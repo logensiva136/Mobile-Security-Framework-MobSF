@@ -190,6 +190,19 @@ class ChecklistReview(models.Model):
     UPDATED_AT = models.DateTimeField(default=timezone.now)
 
 
+class ChecklistReviewLog(models.Model):
+    """History of tester actions on a checklist item."""
+
+    MD5 = models.CharField(max_length=32, db_index=True)
+    STANDARD = models.CharField(max_length=10)
+    ITEM_ID = models.CharField(max_length=40)
+    ACTION = models.CharField(max_length=20)
+    STATUS = models.CharField(max_length=20, default='')
+    NOTE = models.TextField(default='')
+    ACTOR = models.CharField(max_length=150, default='')
+    CREATED_AT = models.DateTimeField(default=timezone.now)
+
+
 class ChecklistEvidence(models.Model):
     """Evidence file attached to a checklist item."""
 

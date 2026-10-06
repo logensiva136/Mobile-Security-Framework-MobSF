@@ -1,5 +1,7 @@
 # -*- coding: utf_8 -*-
 """MobSF REST API V 1."""
+import json
+
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -33,7 +35,13 @@ from mobsf.StaticAnalyzer.views.common.suppression import (
 )
 from mobsf.StaticAnalyzer.views.common.pdf import pdf
 from mobsf.StaticAnalyzer.views.common.appsec import appsec_dashboard
-from mobsf.StaticAnalyzer.views.common.checklist import checklist_api
+from mobsf.StaticAnalyzer.views.common.checklist import (
+    checklist_api,
+    checklist_review,
+)
+from mobsf.StaticAnalyzer.views.common.checklist_evidence import (
+    checklist_evidence_upload,
+)
 from mobsf.StaticAnalyzer.views.windows import windows
 
 
@@ -301,6 +309,33 @@ def api_checklist(request):
         response = make_api_response(
             {'error': 'JSON Generation Error'}, 500)
     return response
+
+
+def _forward(resp):
+    """Convert a JsonResponse of a web view to an API response."""
+    return make_api_response(json.loads(resp.content), resp.status_code)
+
+
+@request_method(['POST'])
+@csrf_exempt
+def api_checklist_review(request):
+    """Save or clear a tester decision on a checklist item."""
+    if 'hash' not in request.POST:
+        return make_api_response(
+            {'error': 'Missing Parameters'}, 422)
+    return _forward(checklist_review(
+        request, request.POST['hash'], api=True))
+
+
+@request_method(['POST'])
+@csrf_exempt
+def api_checklist_evidence(request):
+    """Attach an evidence file to a checklist item."""
+    if 'hash' not in request.POST:
+        return make_api_response(
+            {'error': 'Missing Parameters'}, 422)
+    return _forward(checklist_evidence_upload(
+        request, request.POST['hash'], api=True))
 
 
 @request_method(['POST'])
