@@ -1,7 +1,9 @@
 # -*- coding: utf_8 -*-
 """Tests for the OWASP MAS standards data and checklist builder."""
 import json
+import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest import mock
 
 from django.conf import settings
@@ -9,10 +11,14 @@ from django.contrib.auth.models import Permission, User
 from django.test import SimpleTestCase, TestCase
 
 from mobsf.MobSF.init import api_key
-from mobsf.StaticAnalyzer.models import ChecklistReview
+from mobsf.StaticAnalyzer.models import (
+    ChecklistReview,
+    RecentScansDB,
+)
 from mobsf.StaticAnalyzer.views.common import checklist as checklist_module
 from mobsf.StaticAnalyzer.views.common import mas_standards
 from mobsf.StaticAnalyzer.views.common.checklist import build_checklist
+from mobsf.StaticAnalyzer.views.common.checklist_data import report_links
 
 FIXTURE = {
     'meta': {
@@ -321,6 +327,45 @@ class GuideTests(SimpleTestCase):
             for link in item['guide']['links']))
 
 
+class ReportLinksTests(TestCase):
+    """Links from checklist and scorecard back to the reports."""
+
+    def test_unknown_scan_has_empty_links(self):
+        links = report_links(HASH)
+        self.assertEqual(
+            links, {'static_url': '', 'dynamic_url': '',
+                    'dynamic_exists': False})
+
+    def test_android_dynamic_report_exists_only_with_logcat(self):
+        RecentScansDB.objects.create(
+            MD5=HASH, ANALYZER='static_analyzer', FILE_NAME='a.APK',
+            PACKAGE_NAME='com.demo.app')
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.settings(UPLD_DIR=tmp):
+                self.assertFalse(report_links(HASH)['dynamic_exists'])
+                Path(tmp, HASH).mkdir()
+                Path(tmp, HASH, 'logcat.txt').write_text('x')
+                links = report_links(HASH)
+        self.assertTrue(links['dynamic_exists'])
+        self.assertEqual(links['static_url'], f'/static_analyzer/{HASH}/')
+        self.assertEqual(links['dynamic_url'], f'/dynamic_report/{HASH}')
+
+    def test_ios_links(self):
+        RecentScansDB.objects.create(
+            MD5=HASH, ANALYZER='static_analyzer_ios', FILE_NAME='a.ipa',
+            PACKAGE_NAME='com.demo.app')
+        links = report_links(HASH)
+        self.assertEqual(
+            links['static_url'], f'/static_analyzer_ios/{HASH}/')
+        self.assertIn('com.demo.app', links['dynamic_url'])
+        self.assertFalse(links['dynamic_exists'])
+
+    def test_unsupported_analyzer_gets_no_static_link(self):
+        RecentScansDB.objects.create(
+            MD5=HASH, ANALYZER='evil', FILE_NAME='a.exe')
+        self.assertEqual(report_links(HASH)['static_url'], '')
+
+
 class RuleTagTests(SimpleTestCase):
     """Rule files only reference real OWASP weakness ids."""
 
@@ -557,6 +602,23 @@ class ChecklistViewTests(TestCase):
                         lambda: self.client.get(self.url),
                         platform=platform)
             self.assertEqual(response.status_code, 200)
+
+    def test_page_links_back_to_static_and_dynamic_reports(self):
+        RecentScansDB.objects.create(
+            MD5=HASH, ANALYZER='static_analyzer', FILE_NAME='app.apk',
+            PACKAGE_NAME='com.demo.app')
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.run_with_scan(lambda: self.client.get(self.url))
+        self.assertContains(response, f'href="/static_analyzer/{HASH}/"')
+        self.assertContains(response, f'/dynamic_report/{HASH}')
+        self.assertContains(response, 'Static Report')
+        self.assertContains(response, 'Dynamic Report')
+
+    def test_page_without_scan_record_has_no_report_buttons(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.run_with_scan(lambda: self.client.get(self.url))
+        self.assertNotContains(response, 'Static Report')
+        self.assertNotContains(response, 'Dynamic Report')
 
     def test_ios_page(self):
         with self.settings(DISABLE_AUTHENTICATION='1'):

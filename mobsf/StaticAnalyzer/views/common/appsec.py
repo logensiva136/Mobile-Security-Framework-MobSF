@@ -25,6 +25,9 @@ from mobsf.StaticAnalyzer.views.common.checklist import (
     load_files,
     load_reviews,
 )
+from mobsf.StaticAnalyzer.views.common.checklist_data import (
+    report_links,
+)
 from mobsf.StaticAnalyzer.views.ios.db_interaction import (
     get_context_from_db_entry as idb)
 from mobsf.MobSF.views.authentication import (
@@ -404,6 +407,8 @@ def appsec_dashboard(request, checksum, api=False):
                 return print_n_send_error_response(request, msg, api)
         context['version'] = settings.MOBSF_VER
         context['title'] = 'AppSec Scorecard'
+        if not api:
+            context['report_links'] = report_links(checksum)
         context['efr01'] = True if settings.EFR_01 == '1' else False
         if api:
             return context

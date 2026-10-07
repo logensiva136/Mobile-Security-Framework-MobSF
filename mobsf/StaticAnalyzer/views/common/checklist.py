@@ -79,6 +79,7 @@ from mobsf.StaticAnalyzer.views.android.db_interaction import (
 from mobsf.StaticAnalyzer.views.common.checklist_data import (
     actor_name,
     log_action,
+    report_links,
 )
 from mobsf.StaticAnalyzer.views.common.mas_standards import (
     load_standards,
@@ -590,6 +591,7 @@ def _checklist_response(request, checksum, api):
         'source': checklist['source'],
         'summary': {n: c['summary'] for n, c in sections},
         'platform': platform,
+        'report_links': report_links(checksum),
         'can_review': has_permission(
             request, Permissions.REVIEW, False),
         'current_user': (request.user.get_username()

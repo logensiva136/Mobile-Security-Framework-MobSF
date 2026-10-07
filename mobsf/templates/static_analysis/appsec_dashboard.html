@@ -135,7 +135,7 @@ sidebar-collapse
             {% elif '.appx' == file_name|slice:"-5:"%}<i class="fab fa-windows"></i>
             {% endif %}
         </h1>
-        <label class="text-right"> <a class="btn btn-outline-primary" href="{% url 'checklist' checksum=hash %}"><i class="fas fa-tasks"></i> MAS Tests</a> <a class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-file-pdf"></i></a> </label>
+        <label class="text-right"> {% if report_links.static_url %}<a class="btn btn-primary" href="{{ report_links.static_url }}"><i class="fas fa-eye"></i> Static Report</a> {% endif %}{% if report_links.dynamic_url %}<a class="btn btn-success{% if not report_links.dynamic_exists %} disabled{% endif %}" href="{{ report_links.dynamic_url }}"><i class="fa fa-mobile"></i> Dynamic Report</a> {% endif %}<a class="btn btn-outline-primary" href="{% url 'checklist' checksum=hash %}"><i class="fas fa-tasks"></i> MAS Tests</a> <a class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-file-pdf"></i></a> </label>
       </div>
           </div>
         </div>
