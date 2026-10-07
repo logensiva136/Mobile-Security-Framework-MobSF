@@ -377,6 +377,18 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
 - Evidence quota: 10 files per item, 5 MB per file, 50 MB per scan.
 - iOS API rules (`ios_apis.yaml`) run on source (zip) scans only, so they count as
   coverage only there (`SOURCE_RULE_FILES`); an IPA never gets a Success from them.
+- Evidence ("why this status"): every item explains its status. Failed lists the finding
+  with severity, files and lines; Success lists the rules that ran with no findings;
+  `ToBeTest` says whether no rule or only some rules cover it; MASTG tests say they are
+  manual procedures. Rule labels come from the rule files (`_tested`).
+- How-to-test guide (`attach_guides`, web page only, not in the API or exports): what,
+  when it appears, how, tools, techniques, expected result, impact and fix. All text is
+  from OWASP MAS (data schema 3: overview, steps, observation, evaluation, modes of
+  introduction, impact, mitigations). Techniques and tools are matched by their exact
+  OWASP page titles for the same platform. Never write guidance text by hand.
+- Buttons: "MAS Tests" sits beside "MobSF Scorecard" on Recent Scans, the four static
+  report pages and the scorecard header.
+
 
 ### Known Gaps On The Current Branch (remove each item when fixed)
 

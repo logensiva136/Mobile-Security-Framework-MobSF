@@ -135,7 +135,7 @@ sidebar-collapse
             {% elif '.appx' == file_name|slice:"-5:"%}<i class="fab fa-windows"></i>
             {% endif %}
         </h1>
-        <label class="text-right">  <a class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-file-pdf"></i></a> </label>
+        <label class="text-right"> <a class="btn btn-outline-primary" href="{% url 'checklist' checksum=hash %}"><i class="fas fa-tasks"></i> MAS Tests</a> <a class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-file-pdf"></i></a> </label>
       </div>
           </div>
         </div>
@@ -487,9 +487,6 @@ sidebar-collapse
                 </p>
             </div>
         </div>
-      <div class="row mb-3"><div class="col-12">
-        <a class="btn btn-primary" href="{% url 'checklist' checksum=hash %}"><i class="fas fa-tasks"></i> View MASVS / MASTG / MASWE Checklist</a>
-      </div></div>
     </section>
     <!-- /.content -->
   </div>

@@ -36,13 +36,19 @@ MASWE_RE = re.compile(r'^MASWE/(MASVS-[A-Z]+)/(MASWE-\d{4})/$')
 MASTG_RE = re.compile(
     r'^MASTG/tests/(android|ios)/(MASVS-[A-Z]+)/(MASTG-TEST-\d{4})/$')
 TAG_RE = re.compile(r'<[^>]+>')
+TECH_RE = re.compile(
+    r'^MASTG/techniques/([a-z]+)/(MASTG-TECH-\d{4})/$')
+TOOL_RE = re.compile(
+    r'^MASTG/tools/([a-z]+)/(MASTG-TOOL-\d{4})/$')
+PLATFORM_SUFFIX = re.compile(r'\s*\((?:Android|iOS)\)$')
+MAX_REFS = 8
 V1_RE = re.compile(r'MSTG-[A-Z]+-\d+')
 V2_RE = re.compile(r'MASVS-[A-Z]+-\d+')
 WEAK_RE = re.compile(r'MASWE-\d{4}')
 CWE_RE = re.compile(r'CWE-\d+')
 CWE_STOP = ('MASVS V1:', 'MASVS V2:', 'Android ', 'iOS ',
             'MAS Requirement', 'Platform')
-SCHEMA = 2
+SCHEMA = 3
 TEST_RE = re.compile(r'MASTG-TEST-\d{4}')
 
 _lock = threading.Lock()
@@ -53,6 +59,48 @@ _state = {'last_attempt': 0.0}
 def _text(html):
     """Return plain text from an HTML fragment."""
     return re.sub(r'\s+', ' ', unescape(TAG_RE.sub(' ', html or ''))).strip()
+
+
+def _lines(html, limit=1200):
+    """Return readable text from HTML, keeping list items on own lines."""
+    html = re.sub(r'</(li|p|ul|ol|h\d)>|<br\s*/?>', '\n', html or '')
+    html = re.sub(r'<li[^>]*>', '- ', html)
+    text = unescape(TAG_RE.sub(' ', html))
+    lines = [re.sub(r'\s+', ' ', line).strip()
+             for line in text.split('\n')]
+    out = '\n'.join(line for line in lines if line and line != '-')
+    return out if len(out) <= limit else out[:limit].rstrip() + '...'
+
+
+def _section(docs, loc, name, limit=1200):
+    return _lines(docs.get(f'{loc}#{name}', {}).get('text'), limit)
+
+
+def _refs(docs, regex):
+    """Return {(platform, id): (title, url)} for technique/tool pages."""
+    refs = {}
+    for loc, doc in docs.items():
+        match = regex.match(loc)
+        if match:
+            title = _split_title(doc.get('title', ''), match.group(2))
+            refs[(match.group(1), match.group(2))] = (title, _url(loc))
+    return refs
+
+
+def _mentioned(refs, platform, text, strip_platform=False):
+    """List refs of this platform (or generic) named in the text."""
+    found = []
+    for (plat, ident), (title, url) in sorted(refs.items(),
+                                              key=lambda kv: kv[0][1]):
+        if plat not in (platform, 'generic'):
+            continue
+        name = PLATFORM_SUFFIX.sub('', title) if strip_platform else title
+        if len(name) < 4:
+            continue
+        pattern = r'(?<![A-Za-z0-9])' + re.escape(name) + r'(?![A-Za-z0-9])'
+        if re.search(pattern, text):
+            found.append({'id': ident, 'title': title, 'url': url})
+    return found[:MAX_REFS]
 
 
 def _unique(items):
@@ -86,6 +134,8 @@ def parse_search_index(index, retrieved_at=None, sha256=''):
     """Parse the mas.owasp.org search index into checklist data."""
     docs = {d['location']: d for d in index.get('docs', [])}
     masvs, maswe, mastg = [], [], []
+    techs = _refs(docs, TECH_RE)
+    tools = _refs(docs, TOOL_RE)
     for loc, doc in docs.items():
         match = MASVS_RE.match(loc)
         if match:
@@ -117,18 +167,31 @@ def parse_search_index(index, retrieved_at=None, sha256=''):
                 'masvs_v2': _unique(V2_RE.findall(v2)),
                 'cwe': _unique(CWE_RE.findall(cwe)),
                 'tests': _unique(TEST_RE.findall(_text(tests.get('text')))),
+                'overview': _section(docs, loc, 'overview', 700),
+                'modes': _section(docs, loc, 'modes-of-introduction', 900),
+                'impact': _section(docs, loc, 'impact', 700),
+                'mitigations': _section(docs, loc, 'mitigations', 900),
                 'url': _url(loc),
             })
             continue
         match = MASTG_RE.match(loc)
         if match:
             platform, cat, ident = match.groups()
+            steps = _section(docs, loc, 'steps', 1500)
+            overview = _section(docs, loc, 'overview', 700)
+            context = f'{steps} {overview}'
             mastg.append({
                 'id': ident,
                 'title': _split_title(doc.get('title', ''), ident),
                 'platform': platform,
                 'category': cat,
                 'deprecated': 'Deprecated Test' in (doc.get('text') or ''),
+                'overview': overview,
+                'steps': steps,
+                'observation': _section(docs, loc, 'observation', 500),
+                'evaluation': _section(docs, loc, 'evaluation', 900),
+                'techniques': _mentioned(techs, platform, context),
+                'tools': _mentioned(tools, platform, context, True),
                 'url': _url(loc),
             })
     masvs.sort(key=lambda i: i['id'])

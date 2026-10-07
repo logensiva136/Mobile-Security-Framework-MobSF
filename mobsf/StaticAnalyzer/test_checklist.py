@@ -198,7 +198,8 @@ class ChecklistTests(SimpleTestCase):
         item = next(i for i in used['MASWE']['items']
                     if i['id'] == 'MASWE-0049')
         self.assertEqual(item['status'], 'ToBeTest')
-        self.assertEqual(item['evidence'], ['Dynamic Class and Dexloading'])
+        self.assertTrue(item['evidence'][0].startswith(
+            'Dynamic Class and Dexloading'))
         bad = self.build(_ctx_maswe('MASWE-0049', 'high'))
         self.assertEqual(self.status(bad, 'MASWE', 'MASWE-0049'), 'Failed')
 
@@ -220,11 +221,104 @@ class ChecklistTests(SimpleTestCase):
         cl = self.build({'file_name': 'app.apk'}, 'android')
         self.assertEqual(self.status(cl, 'MASWE', 'MASWE-0030'), 'Success')
 
+    def test_evidence_explains_every_status(self):
+        clean = self.build({'file_name': 'app.apk'})
+        success = next(i for i in clean['MASWE']['items']
+                       if i['id'] == 'MASWE-0049')
+        self.assertIn('no findings from', success['evidence'][0])
+        self.assertIn('Dynamic Class and Dexloading', success['evidence'][0])
+        manual = next(i for i in clean['MASWE']['items']
+                      if i['id'] == 'MASWE-0099')
+        self.assertIn('No automated rule covers', manual['evidence'][0])
+        test = next(i for i in clean['MASTG']['items']
+                    if i['id'] == 'MASTG-TEST-0207')
+        self.assertIn('Manual test procedure', test['evidence'][-1])
+        other = next(i for i in clean['MASTG']['items']
+                     if i['id'] == 'MASTG-TEST-0208')
+        self.assertIn('ios apps only', other['evidence'][0])
+        control = next(i for i in clean['MASVS']['items']
+                       if i['id'] == 'MASVS-STORAGE-1')
+        self.assertIn('related weaknesses', control['evidence'][0])
+
+    def test_failed_evidence_names_files_and_severity(self):
+        data = _ctx('storage-2', 'high')
+        rule = data['code_analysis']['findings']['rule']
+        rule['files'] = {'com/app/Util.java': '12,30'}
+        cl = self.build(data)
+        item = next(i for i in cl['MASWE']['items']
+                    if i['id'] == 'MASWE-0001')
+        text = item['evidence'][0]
+        self.assertIn('[high]', text)
+        self.assertIn('com/app/Util.java (12,30)', text)
+
+    def test_failed_masvs_evidence_lists_weaknesses(self):
+        cl = self.build(_ctx('storage-2', 'high'))
+        control = next(i for i in cl['MASVS']['items']
+                       if i['id'] == 'MASVS-STORAGE-1')
+        self.assertIn('MASWE-0001', control['evidence'][0])
+
     def test_source_info_included(self):
         cl = self.build({})
         self.assertEqual(cl['source']['source'], 'OWASP MAS')
         self.assertFalse(cl['source']['stale'])
         self.assertEqual(cl['source']['age_days'], 0)
+
+
+class GuideTests(SimpleTestCase):
+    """How-to-test guidance built from the bundled OWASP data."""
+
+    def build(self, platform='android'):
+        with open(mas_standards.SNAPSHOT, encoding='utf-8') as fp:
+            standards = json.load(fp)
+        data = {'file_name': 'app.apk'}
+        cl = build_checklist(data, platform, standards)
+        checklist_module.attach_guides(cl, standards, platform)
+        return cl
+
+    def test_every_live_item_has_a_guide(self):
+        cl = self.build()
+        for std in ('MASVS', 'MASWE'):
+            self.assertTrue(all('guide' in i for i in cl[std]['items']))
+        self.assertTrue(all('guide' in i for i in cl['MASTG']['items']))
+
+    def test_mastg_guide_has_steps_tools_and_expected_result(self):
+        cl = self.build()
+        item = next(i for i in cl['MASTG']['items']
+                    if i['id'] == 'MASTG-TEST-0207')
+        guide = item['guide']
+        self.assertIn('Use Installing Apps', guide['how'])
+        self.assertTrue(guide['techniques'])
+        self.assertIn('fails if', guide['expect'])
+        self.assertTrue(guide['what'])
+        self.assertTrue(guide['when'])
+
+    def test_maswe_guide_lists_platform_tests_and_fix(self):
+        cl = self.build('android')
+        item = next(i for i in cl['MASWE']['items']
+                    if i['id'] == 'MASWE-0001')
+        guide = item['guide']
+        self.assertTrue(guide['links'])
+        self.assertIn('Run the MASTG tests', guide['how'])
+        self.assertTrue(guide['fix'])
+        ids = {t['id'] for t in guide['links']}
+        ios = {i['id'] for i in self.build('ios')['MASTG']['items']
+               if i['status'] != 'NotApplicable'}
+        self.assertFalse(ids & ios)
+
+    def test_weakness_without_tests_says_so(self):
+        cl = self.build()
+        item = next(i for i in cl['MASWE']['items']
+                    if i['id'] == 'MASWE-0049')
+        self.assertIn('no MASTG test', item['guide']['how'])
+
+    def test_masvs_guide_links_related_weaknesses(self):
+        cl = self.build()
+        item = next(i for i in cl['MASVS']['items']
+                    if i['id'] == 'MASVS-STORAGE-1')
+        self.assertTrue(item['guide']['links'])
+        self.assertTrue(all(
+            link['url'].startswith('https://mas.owasp.org/')
+            for link in item['guide']['links']))
 
 
 class RuleTagTests(SimpleTestCase):
@@ -267,6 +361,28 @@ class StandardsTests(SimpleTestCase):
         {'location': 'MASTG/tests/ios/MASVS-STORAGE/MASTG-TEST-0001/',
          'title': 'MASTG-TEST-0001: Old',
          'text': '<p>Deprecated Test</p>'},
+        {'location': 'MASTG/techniques/android/MASTG-TECH-0005/',
+         'title': 'MASTG-TECH-0005: Installing Apps', 'text': ''},
+        {'location': 'MASTG/techniques/ios/MASTG-TECH-0056/',
+         'title': 'MASTG-TECH-0056: Installing Apps', 'text': ''},
+        {'location': 'MASTG/tools/android/MASTG-TOOL-0001/',
+         'title': 'MASTG-TOOL-0001: Frida (Android)', 'text': ''},
+        {'location': 'MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0207/'
+                     '#steps',
+         'title': 'Steps',
+         'text': '<ol><li>Use  Installing Apps to install the app.</li>'
+                 '<li>Run Frida to hook the app.</li></ol>'},
+        {'location': 'MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0207/'
+                     '#observation',
+         'title': 'Observation', 'text': '<p>A list of files.</p>'},
+        {'location': 'MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0207/'
+                     '#evaluation',
+         'title': 'Evaluation', 'text': '<p>Fails if secrets are found.</p>'},
+        {'location': 'MASWE/MASVS-STORAGE/MASWE-0001/#overview',
+         'title': 'Overview', 'text': '<p>Data is stored unencrypted.</p>'},
+        {'location': 'MASWE/MASVS-STORAGE/MASWE-0001/#modes-of-introduction',
+         'title': 'Modes', 'text': '<ul><li>Writing files in plain text</li>'
+                                   '</ul>'},
         {'location': 'some/<script>/', 'title': 'ignored', 'text': ''},
     ]}
 
@@ -286,6 +402,23 @@ class StandardsTests(SimpleTestCase):
         self.assertTrue(old['deprecated'])
         self.assertTrue(data['masvs'][0]['url'].startswith(
             'https://mas.owasp.org/'))
+
+    def test_how_to_test_guidance_is_parsed(self):
+        data = mas_standards.parse_search_index(self.INDEX)
+        test = next(t for t in data['mastg']
+                    if t['id'] == 'MASTG-TEST-0207')
+        self.assertTrue(test['steps'].startswith(
+            '- Use Installing Apps to install the app.'))
+        self.assertIn('\n- Run Frida', test['steps'])
+        self.assertEqual([t['id'] for t in test['techniques']],
+                         ['MASTG-TECH-0005'])
+        self.assertEqual([t['id'] for t in test['tools']],
+                         ['MASTG-TOOL-0001'])
+        self.assertEqual(test['observation'], 'A list of files.')
+        self.assertEqual(test['evaluation'], 'Fails if secrets are found.')
+        weak = data['maswe'][0]
+        self.assertEqual(weak['overview'], 'Data is stored unencrypted.')
+        self.assertEqual(weak['modes'], '- Writing files in plain text')
 
     def test_old_schema_data_is_rejected(self):
         data = mas_standards.parse_search_index(self.INDEX)
@@ -403,6 +536,14 @@ class ChecklistViewTests(TestCase):
             response = self.run_with_scan(lambda: self.client.get(self.url))
         self.assertContains(response, 'retrieved on')
         self.assertContains(response, 'MASVS-STORAGE-1')
+
+    def test_page_shows_why_and_how_to_test(self):
+        with self.settings(DISABLE_AUTHENTICATION='1'):
+            response = self.run_with_scan(lambda: self.client.get(self.url))
+        self.assertContains(response, 'Why this status')
+        self.assertContains(response, 'How to test')
+        self.assertContains(response, 'Manual test procedure')
+        self.assertContains(response, 'MobSF does not run them')
 
     def test_ios_page(self):
         with self.settings(DISABLE_AUTHENTICATION='1'):

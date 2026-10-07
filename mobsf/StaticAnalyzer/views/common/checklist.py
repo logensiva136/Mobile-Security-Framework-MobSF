@@ -33,6 +33,8 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 
+import yaml
+
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse, JsonResponse
@@ -139,29 +141,60 @@ def _tags(text):
             for cat, num in TAG.findall(str(text or ''))}
 
 
+def _label(text, limit=80):
+    """Collapse whitespace and cap the length of a label."""
+    return re.sub(r'\s+', ' ', str(text or '')).strip()[:limit]
+
+
+def _yaml_rules(path):
+    """Yield (label, tags) for each rule in a YAML rule file."""
+    rules = yaml.safe_load(path.read_text(encoding='utf-8')) or []
+    for rule in rules:
+        meta = rule.get('metadata') or {}
+        tags = (_tags(meta.get('masvs'))
+                | _cwe_tags(meta.get('cwe'))
+                | _maswe_tags(meta.get('maswe')))
+        yield _label(rule.get('message') or rule.get('id')), tags
+
+
+def _python_rules(path):
+    """Yield (label, tags) for each rule in the IPA binary rule file."""
+    text = path.read_text(encoding='utf-8')
+    for block in text.split('\n    {\n')[1:]:
+        match = re.search(r"'description': '([^']+)'", block)
+        tags = set()
+        for line in block.splitlines():
+            low = line.lower()
+            if 'masvs' in low:
+                tags |= _tags(line)
+            if 'cwe' in low:
+                tags |= _cwe_tags(line)
+        yield _label(match.group(1) if match else 'IPA binary rule'), tags
+
+
 @lru_cache(maxsize=None)
 def _tested(platform, source=False):
-    """Tags covered by at least one automated rule for this scan type."""
-    tested = set()
+    """Map each tag covered by an automated rule to the rule labels."""
+    tested = {}
     files = list(RULE_FILES.get(platform, []))
     if source:
         files += SOURCE_RULE_FILES.get(platform, [])
     for path in files:
         try:
-            for line in path.read_text(encoding='utf-8').splitlines():
-                if 'masvs' in line.lower():
-                    tested |= _tags(line)
-                if 'cwe' in line.lower():
-                    tested |= _cwe_tags(line)
-                if 'maswe' in line.lower():
-                    tested |= _maswe_tags(line)
-        except OSError:
+            rules = (_python_rules(path) if path.suffix == '.py'
+                     else _yaml_rules(path))
+            for label, tags in rules:
+                for tag in tags:
+                    labels = tested.setdefault(tag, [])
+                    if label not in labels:
+                        labels.append(label)
+        except (OSError, yaml.YAMLError):
             continue
     return tested
 
 
 def _walk(obj, found):
-    """Collect (tags, severity, title) from dicts with metadata.masvs."""
+    """Collect (tags, severity, title, files) from rule findings."""
     if isinstance(obj, dict):
         meta = obj.get('metadata')
         if isinstance(meta, dict) and (
@@ -172,7 +205,8 @@ def _walk(obj, found):
                 | _cwe_tags(meta.get('cwe'))
                 | _maswe_tags(meta.get('maswe')),
                 str(meta.get('severity', '')).lower(),
-                meta.get('description') or meta.get('title') or ''))
+                meta.get('description') or meta.get('title') or '',
+                obj.get('files')))
         for val in obj.values():
             _walk(val, found)
     elif isinstance(obj, (list, tuple)):
@@ -216,12 +250,34 @@ def summarize(items):
     return out
 
 
+def _describe(title, sev, files):
+    """Describe a finding: title, severity and where it was found."""
+    text = _label(title, 160)
+    if sev:
+        text += f' [{sev}]'
+    if isinstance(files, dict) and files:
+        shown = [f'{_label(path, 60)} ({_label(lines, 30)})'
+                 for path, lines in list(files.items())[:3]]
+        text += ' in ' + ', '.join(shown)
+        if len(files) > 3:
+            text += f' +{len(files) - 3} more'
+    return text
+
+
+def _names(labels, limit=3):
+    """Join rule labels, capping how many are listed."""
+    shown = '; '.join(labels[:limit])
+    more = len(labels) - limit
+    return shown + (f' (+{more} more)' if more > 0 else '')
+
+
 def _collect(data):
     """Group finding titles by tag and severity class."""
     found = []
     _walk(data, found)
     failed, passed, review = {}, {}, {}
-    for tags, sev, title in found:
+    for tags, sev, title, files in found:
+        text = _describe(title, sev, files)
         if sev in FAIL_SEV:
             bucket = failed
         elif sev in PASS_SEV:
@@ -229,7 +285,7 @@ def _collect(data):
         else:
             bucket = review
         for tag in tags:
-            bucket.setdefault(tag, []).append(title)
+            bucket.setdefault(tag, []).append(text)
     return failed, passed, review
 
 
@@ -238,7 +294,7 @@ def _maswe_status(weak, tested, failed, passed, review):
 
     A rule that names the weakness itself (``maswe`` metadata) decides it.
     Otherwise legacy MSTG tags are used, and for weaknesses without them
-    the CWE ids OWASP lists on the weakness.
+    the CWE ids OWASP lists on the weakness. The evidence says why.
     """
     if weak['id'] in tested:
         tags = [weak['id']]
@@ -249,12 +305,39 @@ def _maswe_status(weak, tested, failed, passed, review):
         titles = [f'{x} ({t})' if t.startswith('CWE') else x
                   for t in hits for x in failed[t]]
         return CheckStatus.FAILED, list(dict.fromkeys(titles))
-    notes = [x for t in tags for x in review.get(t, [])]
-    covered = bool(tags) and all(
-        t in tested or t in passed for t in tags)
-    if covered and not notes:
-        return CheckStatus.SUCCESS, []
-    return CheckStatus.TO_BE_TEST, list(dict.fromkeys(notes))
+    notes = list(dict.fromkeys(x for t in tags for x in review.get(t, [])))
+    covered = [t for t in tags if t in tested or t in passed]
+    rules = list(dict.fromkeys(
+        label for t in covered for label in tested.get(t, [])))
+    if tags and len(covered) == len(tags) and not notes:
+        if rules:
+            return CheckStatus.SUCCESS, [
+                f'Automated check passed, no findings from: {_names(rules)}']
+        return CheckStatus.SUCCESS, ['Automated check passed']
+    if notes:
+        return CheckStatus.TO_BE_TEST, notes
+    if covered:
+        return CheckStatus.TO_BE_TEST, [
+            f'Partly covered by: {_names(rules)}. '
+            'The rest needs manual testing.']
+    return CheckStatus.TO_BE_TEST, [
+        'No automated rule covers this weakness. Test it manually.']
+
+
+def _masvs_evidence(weaknesses, maswe_status):
+    """Explain a control status from its related weaknesses."""
+    sts = [maswe_status[w] for w in weaknesses if w in maswe_status]
+    failed = [w for w in weaknesses
+              if maswe_status.get(w) == CheckStatus.FAILED]
+    if failed:
+        return ['Failed weaknesses: ' + ', '.join(failed)]
+    if not sts:
+        return ['No related weaknesses are listed by OWASP']
+    ok = sum(1 for s in sts if s == CheckStatus.SUCCESS)
+    if ok == len(sts):
+        return [f'All {ok} related weaknesses passed automated checks']
+    return [f'{ok} of {len(sts)} related weaknesses passed automated '
+            'checks, the rest need manual testing']
 
 
 def _masvs_status(weaknesses, maswe_status):
@@ -288,7 +371,7 @@ def build_checklist(
         if applicable:
             status, ev = _maswe_status(weak, tested, failed, passed, review)
         else:
-            status, ev = na, []
+            status, ev = na, ['No checklist for this scan type']
         item = _with_review(
             _item('MASWE', weak, status, ev), reviews, files, assignments)
         maswe_status[weak['id']] = CheckStatus(item['status'])
@@ -301,8 +384,8 @@ def build_checklist(
             w['id'] for w in standards['maswe']
             if ctl['id'] in w['masvs_v2']]))
         status = _masvs_status(weaknesses, maswe_status) if applicable else na
-        related = [w for w in weaknesses
-                   if maswe_status.get(w) == CheckStatus.FAILED]
+        related = (_masvs_evidence(weaknesses, maswe_status)
+                   if applicable else ['No checklist for this scan type'])
         masvs_items.append(
             _with_review(
                 _item('MASVS', ctl, status, related), reviews, files, assignments))
@@ -315,13 +398,18 @@ def build_checklist(
     for test in standards['mastg']:
         if test['deprecated']:
             continue
-        if not applicable or test['platform'] != platform:
-            status, ev = na, []
+        if not applicable:
+            status, ev = na, ['No checklist for this scan type']
+        elif test['platform'] != platform:
+            status = na
+            ev = [f"This test applies to {test['platform']} apps only"]
         else:
             status = CheckStatus.TO_BE_TEST
             ev = [f'{w} {maswe_status[w].value} in automated scan'
                   for w in parent.get(test['id'], [])
                   if maswe_status.get(w) == CheckStatus.FAILED]
+            ev.append('Manual test procedure. MobSF does not run it '
+                      'automatically.')
         mastg_items.append(
             _with_review(
                 _item('MASTG', test, status, ev), reviews, files, assignments))
@@ -356,6 +444,78 @@ def load_reviews(checksum):
         }
         for r in ChecklistReview.objects.filter(MD5=checksum)
     }
+
+
+def _refs_of(tests, key):
+    """Union of technique/tool references of several tests."""
+    seen = {}
+    for test in tests:
+        for ref in test.get(key, []):
+            seen.setdefault(ref['id'], ref)
+    return list(seen.values())[:8]
+
+
+def _test_links(tests):
+    return [{'id': t['id'], 'title': t['title'], 'url': t['url']}
+            for t in tests]
+
+
+def attach_guides(checklist, standards, platform):
+    """Add OWASP "how to test" guidance (what, when, how, tools) to items.
+
+    Only used for the web page. Text comes from the OWASP MAS data.
+    """
+    maswe = {w['id']: w for w in standards['maswe']}
+    tests = {t['id']: t for t in standards['mastg'] if not t.get('deprecated')}
+    parents = {}
+    for weak in standards['maswe']:
+        for test_id in weak['tests']:
+            parents.setdefault(test_id, []).append(weak)
+    for item in checklist['MASVS']['items']:
+        control = next(c for c in standards['masvs']
+                       if c['id'] == item['id'])
+        related = [maswe[w] for w in control['weaknesses'] if w in maswe]
+        item['guide'] = {
+            'what': control.get('title', ''),
+            'when': 'Decided by the weaknesses below. Test each of them.',
+            'how': 'Open each related weakness and run its MASTG tests.',
+            'links': [{'id': w['id'], 'title': w['title'], 'url': w['url']}
+                      for w in related],
+        }
+    for item in checklist['MASWE']['items']:
+        weak = maswe[item['id']]
+        mine = [tests[t] for t in weak['tests']
+                if t in tests and tests[t]['platform'] == platform]
+        how = ('Run the MASTG tests listed below.' if mine else
+               'OWASP has no MASTG test for this weakness yet. Review the '
+               'app against the mitigations.')
+        item['guide'] = {
+            'what': weak.get('overview', ''),
+            'when': weak.get('modes', ''),
+            'how': how,
+            'tools': _refs_of(mine, 'tools'),
+            'techniques': _refs_of(mine, 'techniques'),
+            'impact': weak.get('impact', ''),
+            'fix': weak.get('mitigations', ''),
+            'links': _test_links(mine),
+        }
+    for item in checklist['MASTG']['items']:
+        test = tests.get(item['id'])
+        if not test:
+            continue
+        owners = parents.get(item['id'], [])
+        item['guide'] = {
+            'what': test.get('overview', ''),
+            'when': '\n'.join(w.get('modes', '') for w in owners[:1]),
+            'how': test.get('steps', ''),
+            'tools': test.get('tools', []),
+            'techniques': test.get('techniques', []),
+            'expect': '\n'.join(
+                x for x in (test.get('observation', ''),
+                            test.get('evaluation', '')) if x),
+            'links': [{'id': w['id'], 'title': w['title'], 'url': w['url']}
+                      for w in owners],
+        }
 
 
 def load_assignments(checksum):
@@ -403,6 +563,7 @@ def _checklist_response(request, checksum, api):
             'platform': platform,
             'checklist': checklist,
         }
+    attach_guides(checklist, load_standards(), platform)
     sections = [(n, checklist[n]) for n in ('MASVS', 'MASWE', 'MASTG')]
     context = {
         'checklist': checklist,
