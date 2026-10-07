@@ -169,6 +169,27 @@
     <article id="contents">
 
       
+      {% if appsec.engagement.exists %}
+      <h2><i class="fas fa-clipboard-list"></i> ENGAGEMENT</h2>
+      <table class="table table-bordered">
+        <tbody>
+        {% if appsec.engagement.start_date or appsec.engagement.end_date %}<tr><th style="width:25%">Dates</th><td>{{ appsec.engagement.start_date }} to {{ appsec.engagement.end_date }}</td></tr>{% endif %}
+        {% if appsec.engagement.profiles_text %}<tr><th style="width:25%">Level</th><td style="white-space: pre-line">{{ appsec.engagement.profiles_text }}</td></tr>{% endif %}
+        {% if appsec.engagement.testers %}<tr><th style="width:25%">Testers</th><td style="white-space: pre-line">{{ appsec.engagement.testers }}</td></tr>{% endif %}
+        {% if appsec.engagement.device %}<tr><th style="width:25%">Device</th><td style="white-space: pre-line">{{ appsec.engagement.device }}</td></tr>{% endif %}
+        {% if appsec.engagement.os_version %}<tr><th style="width:25%">OS version</th><td style="white-space: pre-line">{{ appsec.engagement.os_version }}</td></tr>{% endif %}
+        {% if appsec.engagement.rooted %}<tr><th style="width:25%">Rooted / jailbroken</th><td style="white-space: pre-line">{{ appsec.engagement.rooted }}</td></tr>{% endif %}
+        {% if appsec.engagement.proxy %}<tr><th style="width:25%">Proxy</th><td style="white-space: pre-line">{{ appsec.engagement.proxy }}</td></tr>{% endif %}
+        {% if appsec.engagement.tools %}<tr><th style="width:25%">Tools and versions</th><td style="white-space: pre-line">{{ appsec.engagement.tools }}</td></tr>{% endif %}
+        {% if appsec.engagement.scope %}<tr><th style="width:25%">Scope</th><td style="white-space: pre-line">{{ appsec.engagement.scope }}</td></tr>{% endif %}
+        {% if appsec.engagement.rules %}<tr><th style="width:25%">Rules of engagement</th><td style="white-space: pre-line">{{ appsec.engagement.rules }}</td></tr>{% endif %}
+        {% if appsec.engagement.accounts %}<tr><th style="width:25%">Test accounts</th><td style="white-space: pre-line">{{ appsec.engagement.accounts }}</td></tr>{% endif %}
+        {% if appsec.engagement.api_notes %}<tr><th style="width:25%">Backend API notes</th><td style="white-space: pre-line">{{ appsec.engagement.api_notes }}</td></tr>{% endif %}
+        <tr><th>Last updated</th><td>{{ appsec.engagement.updated_by }} on {{ appsec.engagement.updated_at }}</td></tr>
+        </tbody>
+      </table>
+      {% endif %}
+
       {% if appsec.checklist %}
       <h2><i class="fas fa-tasks"></i> OWASP MASVS / MASWE / MASTG CHECKLIST</h2>
       <p>

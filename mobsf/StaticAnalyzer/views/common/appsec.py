@@ -26,6 +26,7 @@ from mobsf.StaticAnalyzer.views.common.checklist import (
     load_reviews,
 )
 from mobsf.StaticAnalyzer.views.common.checklist_data import (
+    load_engagement,
     report_links,
 )
 from mobsf.StaticAnalyzer.views.ios.db_interaction import (
@@ -280,6 +281,7 @@ def get_android_dashboard(context, from_ctx=False):
         reviews=load_reviews(data.get('md5', '')),
         files=load_files(data.get('md5', '')),
         assignments=load_assignments(data.get('md5', '')))
+    findings['engagement'] = load_engagement(data.get('md5', ''))
     return findings
 
 
@@ -377,6 +379,7 @@ def get_ios_dashboard(context, from_ctx=False):
         reviews=load_reviews(data.get('md5', '')),
         files=load_files(data.get('md5', '')),
         assignments=load_assignments(data.get('md5', '')))
+    findings['engagement'] = load_engagement(data.get('md5', ''))
     return findings
 
 

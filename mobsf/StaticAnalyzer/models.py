@@ -190,6 +190,27 @@ class ChecklistReview(models.Model):
     UPDATED_AT = models.DateTimeField(default=timezone.now)
 
 
+class ChecklistEngagement(models.Model):
+    """Scope and setup of a pentest engagement for one scan."""
+
+    MD5 = models.CharField(max_length=32, primary_key=True)
+    PROFILES = models.CharField(max_length=20, default='')
+    SCOPE = models.TextField(default='')
+    RULES = models.TextField(default='')
+    TESTERS = models.CharField(max_length=300, default='')
+    START_DATE = models.DateField(null=True, blank=True)
+    END_DATE = models.DateField(null=True, blank=True)
+    DEVICE = models.CharField(max_length=200, default='')
+    OS_VERSION = models.CharField(max_length=100, default='')
+    ROOTED = models.CharField(max_length=3, default='')
+    TOOLS = models.TextField(default='')
+    PROXY = models.CharField(max_length=200, default='')
+    ACCOUNTS = models.TextField(default='')
+    API_NOTES = models.TextField(default='')
+    UPDATED_BY = models.CharField(max_length=150, default='')
+    UPDATED_AT = models.DateTimeField(default=timezone.now)
+
+
 class ChecklistAssignment(models.Model):
     """Tester an item is assigned to."""
 

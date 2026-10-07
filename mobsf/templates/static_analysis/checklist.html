@@ -49,6 +49,118 @@ sidebar-collapse
         MASTG tests are manual procedures: MobSF does not run them. Use the
         "How to test" guide on each item and record your decision.
       </p>
+      <div class="card mb-3" id="cl-engagement">
+        <div class="card-header">
+          <h3 class="card-title"><i class="fas fa-clipboard-list mr-1"></i> Engagement</h3>
+          <span class="small text-muted ml-2">
+            {% if engagement.exists %}Updated by {{ engagement.updated_by }} on {{ engagement.updated_at }}{% else %}Not filled in yet{% endif %}
+          </span>
+        </div>
+        <div class="card-body small">
+          <div class="row">
+            <div class="col-md-4">
+              <div><strong>App</strong> {{ app_name }} ({{ platform }})</div>
+              <div class="text-break"><strong>File</strong> {{ file_name }}</div>
+              <div class="text-break"><strong>Hash</strong> {{ hash }}</div>
+              <div><strong>Level</strong> {% if engagement.profiles %}{% for p in engagement.profiles %}<span class="badge badge-info">{{ p }}</span> {% endfor %}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+              <div><strong>Testers</strong> {% if engagement.testers %}{{ engagement.testers }}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+              <div><strong>Dates</strong> {% if engagement.start_date or engagement.end_date %}{{ engagement.start_date }} to {{ engagement.end_date }}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+            </div>
+            <div class="col-md-4">
+              <div><strong>Device</strong> {% if engagement.device %}{{ engagement.device }}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+              <div><strong>OS</strong> {% if engagement.os_version %}{{ engagement.os_version }}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+              <div><strong>Rooted / jailbroken</strong> {% if engagement.rooted %}{{ engagement.rooted }}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+              <div><strong>Proxy</strong> {% if engagement.proxy %}{{ engagement.proxy }}{% else %}<span class="text-muted">not set</span>{% endif %}</div>
+              <div><strong>Tools</strong><div class="cl-text">{% if engagement.tools %}{{ engagement.tools }}{% else %}<span class="text-muted">not set</span>{% endif %}</div></div>
+            </div>
+            <div class="col-md-4">
+              <div><strong>Scope</strong><div class="cl-text">{% if engagement.scope %}{{ engagement.scope }}{% else %}<span class="text-muted">not set</span>{% endif %}</div></div>
+              <div><strong>Rules of engagement</strong><div class="cl-text">{% if engagement.rules %}{{ engagement.rules }}{% else %}<span class="text-muted">not set</span>{% endif %}</div></div>
+              <div><strong>Test accounts</strong><div class="cl-text">{% if engagement.accounts %}{{ engagement.accounts }}{% else %}<span class="text-muted">not set</span>{% endif %}</div></div>
+              <div><strong>Backend API notes</strong><div class="cl-text">{% if engagement.api_notes %}{{ engagement.api_notes }}{% else %}<span class="text-muted">not set</span>{% endif %}</div></div>
+            </div>
+          </div>
+          {% if can_review %}
+          <details class="mt-2" {% if not engagement.exists %}open{% endif %}>
+            <summary class="text-primary">Edit engagement</summary>
+            <form id="cl-engagement-form" class="mt-2 border rounded p-2">
+              <div class="form-row">
+                <div class="form-group col-md-4">
+                  <label class="mb-0">Level</label>
+                  <div>
+                    <label class="mr-2"><input type="checkbox" name="profiles" value="L1"{% if 'L1' in engagement.profiles %} checked{% endif %}> L1</label>
+                    <label class="mr-2"><input type="checkbox" name="profiles" value="L2"{% if 'L2' in engagement.profiles %} checked{% endif %}> L2</label>
+                    <label class="mr-2"><input type="checkbox" name="profiles" value="R"{% if 'R' in engagement.profiles %} checked{% endif %}> R</label>
+                    <label class="mr-2"><input type="checkbox" name="profiles" value="P"{% if 'P' in engagement.profiles %} checked{% endif %}> P</label>
+                  </div>
+                </div>
+                <div class="form-group col-md-4">
+                  <label class="mb-0" for="cl-testers">Testers</label>
+                  <input id="cl-testers" class="form-control form-control-sm" name="testers" maxlength="300" value="{{ engagement.testers }}">
+                </div>
+                <div class="form-group col-md-2">
+                  <label class="mb-0" for="cl-start">Start date</label>
+                  <input id="cl-start" type="date" class="form-control form-control-sm" name="start_date" value="{{ engagement.start_date }}">
+                </div>
+                <div class="form-group col-md-2">
+                  <label class="mb-0" for="cl-end">End date</label>
+                  <input id="cl-end" type="date" class="form-control form-control-sm" name="end_date" value="{{ engagement.end_date }}">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-3">
+                  <label class="mb-0" for="cl-device">Device</label>
+                  <input id="cl-device" class="form-control form-control-sm" name="device" maxlength="200" value="{{ engagement.device }}">
+                </div>
+                <div class="form-group col-md-3">
+                  <label class="mb-0" for="cl-os">OS version</label>
+                  <input id="cl-os" class="form-control form-control-sm" name="os_version" maxlength="100" value="{{ engagement.os_version }}">
+                </div>
+                <div class="form-group col-md-2">
+                  <label class="mb-0" for="cl-rooted">Rooted / jailbroken</label>
+                  <select id="cl-rooted" class="custom-select custom-select-sm" name="rooted">
+                    <option value="">Not set</option>
+                    <option value="yes"{% if engagement.rooted == 'yes' %} selected{% endif %}>Yes</option>
+                    <option value="no"{% if engagement.rooted == 'no' %} selected{% endif %}>No</option>
+                  </select>
+                </div>
+                <div class="form-group col-md-4">
+                  <label class="mb-0" for="cl-proxy">Proxy</label>
+                  <input id="cl-proxy" class="form-control form-control-sm" name="proxy" maxlength="200" placeholder="for example Burp on 192.168.1.5:8080" value="{{ engagement.proxy }}">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="mb-0" for="cl-tools">Tools and versions</label>
+                  <textarea id="cl-tools" class="form-control form-control-sm" name="tools" rows="3" maxlength="1000">{{ engagement.tools }}</textarea>
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="mb-0" for="cl-scope">Scope</label>
+                  <textarea id="cl-scope" class="form-control form-control-sm" name="scope" rows="3" maxlength="4000">{{ engagement.scope }}</textarea>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="mb-0" for="cl-rules">Rules of engagement</label>
+                  <textarea id="cl-rules" class="form-control form-control-sm" name="rules" rows="3" maxlength="4000">{{ engagement.rules }}</textarea>
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="mb-0" for="cl-accounts">Test accounts</label>
+                  <textarea id="cl-accounts" class="form-control form-control-sm" name="accounts" rows="3" maxlength="2000" placeholder="Labels and notes only, for example: user-A (normal), user-B (admin). Keep the credentials in your password manager.">{{ engagement.accounts }}</textarea>
+                  <small class="text-danger">Never type real passwords here.</small>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="mb-0" for="cl-api">Backend API notes (endpoints in scope, auth, rate limits)</label>
+                <textarea id="cl-api" class="form-control form-control-sm" name="api_notes" rows="3" maxlength="4000">{{ engagement.api_notes }}</textarea>
+              </div>
+              <button type="submit" class="btn btn-sm btn-primary">Save engagement</button>
+              <span class="small text-danger ml-2" id="cl-engagement-error"></span>
+            </form>
+          </details>
+          {% endif %}
+        </div>
+      </div>
       <div class="row">
         {% for std, cl in sections %}
         <div class="col-md-4">
@@ -347,6 +459,35 @@ sidebar-collapse
            row.querySelector('.cl-error'));
     });
   });
+  var engForm = document.getElementById('cl-engagement-form');
+  if (engForm) {
+    engForm.addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var err = document.getElementById('cl-engagement-error');
+      err.textContent = '';
+      try {
+        var resp = await fetch("{% url 'checklist_engagement' checksum=hash %}", {
+          method: 'POST',
+          headers: {'X-CSRFToken': '{{ csrf_token }}'},
+          body: new URLSearchParams(new FormData(engForm))
+        });
+        var data = await resp.json();
+        if (resp.ok && data.status === 'ok') {
+          window.location.reload();
+          return;
+        }
+        if (data.message) {
+          err.textContent = data.message;
+        } else {
+          err.textContent = Object.keys(data).map(function (k) {
+            return k + ': ' + data[k];
+          }).join('; ') || 'Could not save';
+        }
+      } catch (e) {
+        err.textContent = 'Could not save';
+      }
+    });
+  }
   document.getElementById('cl-assign-filter').addEventListener(
     'change', applyFilter);
   document.getElementById('cl-status').addEventListener('change', applyFilter);

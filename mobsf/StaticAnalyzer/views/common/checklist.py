@@ -62,12 +62,14 @@ from mobsf.MobSF.views.authorization import (
 )
 from mobsf.StaticAnalyzer.forms import (
     ChecklistAssignForm,
+    ChecklistEngagementForm,
     ChecklistExportForm,
     ChecklistItemForm,
     ChecklistReviewForm,
 )
 from mobsf.StaticAnalyzer.models import (
     ChecklistAssignment,
+    ChecklistEngagement,
     ChecklistEvidence,
     ChecklistReview,
     ChecklistReviewLog,
@@ -77,7 +79,9 @@ from mobsf.StaticAnalyzer.models import (
 from mobsf.StaticAnalyzer.views.android.db_interaction import (
     get_context_from_db_entry as adb)
 from mobsf.StaticAnalyzer.views.common.checklist_data import (
+    PROFILE_ORDER,
     actor_name,
+    load_engagement,
     log_action,
     report_links,
 )
@@ -581,6 +585,7 @@ def _checklist_response(request, checksum, api):
             'app_name': data.get('app_name', ''),
             'file_name': data.get('file_name', ''),
             'platform': platform,
+            'engagement': load_engagement(checksum),
             'checklist': checklist,
         }
     attach_guides(checklist, load_standards(), platform)
@@ -592,6 +597,7 @@ def _checklist_response(request, checksum, api):
         'summary': {n: c['summary'] for n, c in sections},
         'platform': platform,
         'report_links': report_links(checksum),
+        'engagement': load_engagement(checksum),
         'can_review': has_permission(
             request, Permissions.REVIEW, False),
         'current_user': (request.user.get_username()
@@ -725,6 +731,7 @@ def checklist_export(request, checksum):
             'hash': checksum,
             'app_name': data.get('app_name', ''),
             'platform': platform,
+            'engagement': load_engagement(checksum),
             'checklist': checklist,
         }, indent=1)
         ctype = 'application/json; charset=utf-8'
@@ -793,3 +800,43 @@ def checklist_assign(request, checksum, api=False):
         **keys)
     log_action(checksum, std, item_id, 'assign', actor, note=assignee)
     return JsonResponse({'status': 'ok', 'assignee': assignee})
+
+
+@login_required
+@require_http_methods(['POST'])
+@permission_required(Permissions.REVIEW)
+def checklist_engagement(request, checksum, api=False):
+    """Save the engagement record (scope and setup) of a scan."""
+    if not is_md5(checksum):
+        return _json_error('Invalid Hash', 400)
+    form = ChecklistEngagementForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse(FormUtil.errors_message(form), status=400)
+    if not (StaticAnalyzerAndroid.objects.filter(MD5=checksum).exists()
+            or StaticAnalyzerIOS.objects.filter(MD5=checksum).exists()):
+        return _json_error('Report not found or supported', 404)
+    cd = form.cleaned_data
+    profiles = [p for p in PROFILE_ORDER if p in cd['profiles']]
+    ChecklistEngagement.objects.update_or_create(
+        MD5=checksum,
+        defaults={
+            'PROFILES': ','.join(profiles),
+            'SCOPE': cd['scope'],
+            'RULES': cd['rules'],
+            'TESTERS': cd['testers'],
+            'START_DATE': cd['start_date'],
+            'END_DATE': cd['end_date'],
+            'DEVICE': cd['device'],
+            'OS_VERSION': cd['os_version'],
+            'ROOTED': cd['rooted'],
+            'TOOLS': cd['tools'],
+            'PROXY': cd['proxy'],
+            'ACCOUNTS': cd['accounts'],
+            'API_NOTES': cd['api_notes'],
+            'UPDATED_BY': actor_name(request, api),
+            'UPDATED_AT': timezone.now(),
+        })
+    logger.info(
+        'Engagement record saved for %s', sanitize_for_logging(checksum))
+    return JsonResponse(
+        {'status': 'ok', 'engagement': load_engagement(checksum)})

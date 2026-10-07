@@ -111,6 +111,8 @@ urlpatterns = [
             api_sz.api_checklist_evidence),
     re_path(r'^api/v1/checklist_assign$',
             api_sz.api_checklist_assign),
+    re_path(r'^api/v1/checklist_engagement$',
+            api_sz.api_checklist_engagement),
     # Static Suppression
     re_path(r'^api/v1/suppress_by_rule$', api_sz.api_suppress_by_rule_id),
     re_path(r'^api/v1/suppress_by_files$', api_sz.api_suppress_by_files),
@@ -291,6 +293,9 @@ if settings.API_ONLY == '0':
         re_path(fr'^checklist/{checksum_regex}/assign/$',
                 checklist.checklist_assign,
                 name='checklist_assign'),
+        re_path(fr'^checklist/{checksum_regex}/engagement/$',
+                checklist.checklist_engagement,
+                name='checklist_engagement'),
         re_path(fr'^checklist/{checksum_regex}/evidence/$',
                 checklist_evidence.checklist_evidence_upload,
                 name='checklist_evidence_upload'),

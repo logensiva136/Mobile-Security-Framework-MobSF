@@ -396,6 +396,25 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   `_guide`) and use flat fields such as `review_status` instead of `it.review.status`.
   `test_page_render_has_no_template_errors` guards this.
 
+### Pentest Workflow (planned phases)
+
+Goal: make the checklist usable for a real mobile pentest. Work in phases, one commit each:
+1. Engagement record (done): `ChecklistEngagement`, one per scan. Level profiles (L1, L2,
+   R, P), scope, rules of engagement, testers, dates, device, OS, rooted, tools, proxy, test
+   account labels and backend API notes. `POST checklist/<md5>/engagement/` and
+   `api/v1/checklist_engagement` need `Permissions.REVIEW`; the record is in the page, the
+   API, the JSON export, the scorecard data and both PDF reports. Test accounts are labels
+   and notes only. Never store real credentials.
+2. Findings with severity, reproduction steps, impact and recommendation (recommendation
+   prefilled from the OWASP mitigations).
+3. Retest tracking.
+4. Test plan view filtered by platform and level. OWASP data check: the MAS overview tables
+   tag every weakness and current test with `profile:L1|L2|R|P` (and `EUDIW`). There is no
+   static/dynamic tag, so never filter by test type. Parse the tags with the same pipeline
+   and bump the data schema.
+5. Recon summary built from the existing static scan (no new analysis).
+6. Pentest report (engagement, findings, checklist status, evidence).
+
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
 1. Automation is limited by the rules. Eleven Android and four iOS API rules are tagged

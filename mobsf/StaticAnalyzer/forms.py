@@ -89,6 +89,7 @@ class ViewSourceAndroidForm(AttackDetect, AndroidChecks, WebChecks):
 
 
 STANDARDS = ('MASVS', 'MASWE', 'MASTG')
+PROFILES = ('L1', 'L2', 'R', 'P')
 ITEM_STATUSES = ('Success', 'Failed', 'ToBeTest', 'NotApplicable')
 
 
@@ -117,6 +118,34 @@ class ChecklistAssignForm(ChecklistItemForm):
         regex=USERNAME_REGEX,
         required=False,
         max_length=36)
+
+
+class ChecklistEngagementForm(forms.Form):
+    """Scope and setup of a pentest engagement."""
+
+    profiles = forms.MultipleChoiceField(
+        required=False, choices=[(p, p) for p in PROFILES])
+    scope = forms.CharField(required=False, max_length=4000)
+    rules = forms.CharField(required=False, max_length=4000)
+    testers = forms.CharField(required=False, max_length=300)
+    start_date = forms.DateField(required=False)
+    end_date = forms.DateField(required=False)
+    device = forms.CharField(required=False, max_length=200)
+    os_version = forms.CharField(required=False, max_length=100)
+    rooted = forms.ChoiceField(
+        required=False, choices=[('', ''), ('yes', 'yes'), ('no', 'no')])
+    tools = forms.CharField(required=False, max_length=1000)
+    proxy = forms.CharField(required=False, max_length=200)
+    accounts = forms.CharField(required=False, max_length=2000)
+    api_notes = forms.CharField(required=False, max_length=4000)
+
+    def clean(self):
+        """End date must not be before the start date."""
+        data = super().clean()
+        start, end = data.get('start_date'), data.get('end_date')
+        if start and end and end < start:
+            self.add_error('end_date', 'End date is before the start date')
+        return data
 
 
 class ChecklistEvidenceForm(ChecklistItemForm):

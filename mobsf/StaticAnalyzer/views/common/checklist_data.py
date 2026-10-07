@@ -9,6 +9,7 @@ from django.urls import NoReverseMatch, reverse
 
 from mobsf.StaticAnalyzer.models import (
     ChecklistAssignment,
+    ChecklistEngagement,
     ChecklistEvidence,
     ChecklistReview,
     ChecklistReviewLog,
@@ -35,6 +36,7 @@ def delete_checklist_data(checksum):
     ChecklistEvidence.objects.filter(MD5=checksum).delete()
     ChecklistReviewLog.objects.filter(MD5=checksum).delete()
     ChecklistAssignment.objects.filter(MD5=checksum).delete()
+    ChecklistEngagement.objects.filter(MD5=checksum).delete()
     scan_dir = evidence_dir(checksum)
     if scan_dir.is_dir() and not scan_dir.is_symlink():
         shutil.rmtree(scan_dir, ignore_errors=True)
@@ -98,3 +100,40 @@ def report_links(checksum):
         links['dynamic_exists'] = (
             updir / bundle / 'mobsf_dump_file.txt').exists()
     return links
+
+
+PROFILE_ORDER = ('L1', 'L2', 'R', 'P')
+ENGAGEMENT_TEXT = (
+    'scope', 'rules', 'testers', 'device', 'os_version', 'rooted', 'tools',
+    'proxy', 'accounts', 'api_notes')
+
+
+def load_engagement(checksum):
+    """Return the engagement record of a scan, every key always present."""
+    out = dict.fromkeys(ENGAGEMENT_TEXT, '')
+    out.update(
+        exists=False, profiles=[], profiles_text='', start_date='',
+        end_date='', updated_by='', updated_at='')
+    row = ChecklistEngagement.objects.filter(MD5=checksum).first()
+    if not row:
+        return out
+    out.update(
+        exists=True,
+        scope=row.SCOPE,
+        rules=row.RULES,
+        testers=row.TESTERS,
+        device=row.DEVICE,
+        os_version=row.OS_VERSION,
+        rooted=row.ROOTED,
+        tools=row.TOOLS,
+        proxy=row.PROXY,
+        accounts=row.ACCOUNTS,
+        api_notes=row.API_NOTES,
+        start_date=row.START_DATE.isoformat() if row.START_DATE else '',
+        end_date=row.END_DATE.isoformat() if row.END_DATE else '',
+        updated_by=row.UPDATED_BY,
+        updated_at=row.UPDATED_AT.strftime('%Y-%m-%d %H:%M UTC'))
+    out['profiles'] = [p for p in PROFILE_ORDER
+                       if p in row.PROFILES.split(',')]
+    out['profiles_text'] = ', '.join(out['profiles'])
+    return out
