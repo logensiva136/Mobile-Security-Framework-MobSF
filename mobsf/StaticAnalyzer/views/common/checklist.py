@@ -224,8 +224,11 @@ def _item(std, item, status, evidence=None):
         'evidence': evidence or [],
         'url': item.get('url', ''),
         'review': None,
+        'review_status': '',
+        'review_note': '',
         'files': [],
         'assignee': '',
+        'guide': None,
     }
 
 
@@ -237,6 +240,8 @@ def _with_review(item, reviews, files=None, assignments=None):
     review = (reviews or {}).get(key)
     if review:
         item['review'] = review
+        item['review_status'] = review['status']
+        item['review_note'] = review['note']
         if item['automated_status'] != CheckStatus.FAILED.value:
             item['status'] = review['status']
     return item
@@ -446,6 +451,20 @@ def load_reviews(checksum):
     }
 
 
+GUIDE_DEFAULTS = {
+    'what': '', 'when': '', 'how': '', 'expect': '', 'impact': '',
+    'fix': '', 'tools': [], 'techniques': [], 'links': [],
+}
+
+
+def _guide(**values):
+    """Return a guide with every key present."""
+    guide = {k: (list(v) if isinstance(v, list) else v)
+             for k, v in GUIDE_DEFAULTS.items()}
+    guide.update(values)
+    return guide
+
+
 def _refs_of(tests, key):
     """Union of technique/tool references of several tests."""
     seen = {}
@@ -475,13 +494,13 @@ def attach_guides(checklist, standards, platform):
         control = next(c for c in standards['masvs']
                        if c['id'] == item['id'])
         related = [maswe[w] for w in control['weaknesses'] if w in maswe]
-        item['guide'] = {
-            'what': control.get('title', ''),
-            'when': 'Decided by the weaknesses below. Test each of them.',
-            'how': 'Open each related weakness and run its MASTG tests.',
-            'links': [{'id': w['id'], 'title': w['title'], 'url': w['url']}
-                      for w in related],
-        }
+        item['guide'] = _guide(
+            what=control.get('title', ''),
+            when='Decided by the weaknesses below. Test each of them.',
+            how='Open each related weakness and run its MASTG tests.',
+            links=[{'id': w['id'], 'title': w['title'], 'url': w['url']}
+                   for w in related],
+        )
     for item in checklist['MASWE']['items']:
         weak = maswe[item['id']]
         mine = [tests[t] for t in weak['tests']
@@ -489,33 +508,33 @@ def attach_guides(checklist, standards, platform):
         how = ('Run the MASTG tests listed below.' if mine else
                'OWASP has no MASTG test for this weakness yet. Review the '
                'app against the mitigations.')
-        item['guide'] = {
-            'what': weak.get('overview', ''),
-            'when': weak.get('modes', ''),
-            'how': how,
-            'tools': _refs_of(mine, 'tools'),
-            'techniques': _refs_of(mine, 'techniques'),
-            'impact': weak.get('impact', ''),
-            'fix': weak.get('mitigations', ''),
-            'links': _test_links(mine),
-        }
+        item['guide'] = _guide(
+            what=weak.get('overview', ''),
+            when=weak.get('modes', ''),
+            how=how,
+            tools=_refs_of(mine, 'tools'),
+            techniques=_refs_of(mine, 'techniques'),
+            impact=weak.get('impact', ''),
+            fix=weak.get('mitigations', ''),
+            links=_test_links(mine),
+        )
     for item in checklist['MASTG']['items']:
         test = tests.get(item['id'])
         if not test:
             continue
         owners = parents.get(item['id'], [])
-        item['guide'] = {
-            'what': test.get('overview', ''),
-            'when': '\n'.join(w.get('modes', '') for w in owners[:1]),
-            'how': test.get('steps', ''),
-            'tools': test.get('tools', []),
-            'techniques': test.get('techniques', []),
-            'expect': '\n'.join(
+        item['guide'] = _guide(
+            what=test.get('overview', ''),
+            when='\n'.join(w.get('modes', '') for w in owners[:1]),
+            how=test.get('steps', ''),
+            tools=test.get('tools', []),
+            techniques=test.get('techniques', []),
+            expect='\n'.join(
                 x for x in (test.get('observation', ''),
                             test.get('evaluation', '')) if x),
-            'links': [{'id': w['id'], 'title': w['title'], 'url': w['url']}
-                      for w in owners],
-        }
+            links=[{'id': w['id'], 'title': w['title'], 'url': w['url']}
+                   for w in owners],
+        )
 
 
 def load_assignments(checksum):

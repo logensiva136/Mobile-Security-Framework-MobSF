@@ -170,12 +170,12 @@ sidebar-collapse
                         <div class="input-group input-group-sm mb-2">
                           <select class="custom-select cl-review-status">
                             <option value="">Clear</option>
-                            <option value="Success"{% if it.review.status == 'Success' %} selected{% endif %}>Success</option>
-                            <option value="Failed"{% if it.review.status == 'Failed' %} selected{% endif %}>Failed</option>
-                            <option value="ToBeTest"{% if it.review.status == 'ToBeTest' %} selected{% endif %}>To be tested</option>
-                            <option value="NotApplicable"{% if it.review.status == 'NotApplicable' %} selected{% endif %}>N/A</option>
+                            <option value="Success"{% if it.review_status == 'Success' %} selected{% endif %}>Success</option>
+                            <option value="Failed"{% if it.review_status == 'Failed' %} selected{% endif %}>Failed</option>
+                            <option value="ToBeTest"{% if it.review_status == 'ToBeTest' %} selected{% endif %}>To be tested</option>
+                            <option value="NotApplicable"{% if it.review_status == 'NotApplicable' %} selected{% endif %}>N/A</option>
                           </select>
-                          <input class="form-control cl-review-note" maxlength="2000" placeholder="Note" value="{{ it.review.note }}">
+                          <input class="form-control cl-review-note" maxlength="2000" placeholder="Note" value="{{ it.review_note }}">
                           <div class="input-group-append"><button type="button" class="btn btn-outline-primary cl-save">Save</button></div>
                         </div>
                         <label class="small mb-0">Assign to</label>

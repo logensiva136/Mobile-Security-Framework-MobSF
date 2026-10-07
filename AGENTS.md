@@ -390,6 +390,12 @@ This is a security reporting tool. A wrong or invented ID is a false assurance.
   report pages and the scorecard header.
 
 
+- Templates must never look up a missing key or an attribute of `None`. Django logs each
+  failed lookup with a traceback, which once produced about 9,000 log lines per page view
+  and buried real errors. Give every dict the template reads all its keys (see `_item`,
+  `_guide`) and use flat fields such as `review_status` instead of `it.review.status`.
+  `test_page_render_has_no_template_errors` guards this.
+
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
 1. Automation is limited by the rules. Eleven Android and four iOS API rules are tagged

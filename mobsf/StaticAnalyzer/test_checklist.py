@@ -545,6 +545,19 @@ class ChecklistViewTests(TestCase):
         self.assertContains(response, 'Manual test procedure')
         self.assertContains(response, 'MobSF does not run them')
 
+    def test_page_render_has_no_template_errors(self):
+        """Missing variables in the template flood the debug log."""
+        ChecklistReview.objects.create(
+            MD5=HASH, STANDARD='MASWE', ITEM_ID='MASWE-0049',
+            STATUS='Failed', NOTE='n', REVIEWER='t')
+        for platform in ('android', 'ios'):
+            with self.settings(DISABLE_AUTHENTICATION='1'):
+                with self.assertNoLogs('django.template', level='DEBUG'):
+                    response = self.run_with_scan(
+                        lambda: self.client.get(self.url),
+                        platform=platform)
+            self.assertEqual(response.status_code, 200)
+
     def test_ios_page(self):
         with self.settings(DISABLE_AUTHENTICATION='1'):
             response = self.run_with_scan(
