@@ -78,9 +78,13 @@ def mobsfy(request, api=False):
             }
             return send_response(data, api)
         identifier = docker_translate_localhost(identifier)
-        create_env = Environment(identifier)
+        allow = request.POST.get('allow_unsupported') == '1'
+        create_env = Environment(identifier, allow_unsupported=allow)
         if not create_env.connect_n_mount():
-            data = {'status': 'failed', 'message': msg}
+            data = {
+                'status': 'failed',
+                'message': create_env.last_error or msg,
+            }
             return send_response(data, api)
         version = create_env.mobsfy_init()
         if not version:

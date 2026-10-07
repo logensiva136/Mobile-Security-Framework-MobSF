@@ -415,6 +415,27 @@ Goal: make the checklist usable for a real mobile pentest. Work in phases, one c
 5. Recon summary built from the existing static scan (no new analysis).
 6. Pentest report (engagement, findings, checklist status, evidence).
 
+### Dynamic Analysis On Newer Android Versions
+
+MobSF limits Android dynamic analysis to `ANDROID_API_SUPPORTED` (API 30, Android 11) in
+`DynamicAnalyzer/views/android/environment.py`. Many current apps need Android 12 or newer
+(for example both banking apps used in testing have `minSdk` 31), so the limit is now a
+user choice, never a silent default:
+
+- Default: unchanged. A newer emulator is refused with a message that says how to continue
+  (`Environment.last_error`, shown instead of "Connection failed").
+- Opt-in: the "Try unsupported Android versions" checkbox on the Android dynamic page (kept
+  in the browser's `localStorage`), or `allow_unsupported=1` on `mobsfy` and the start
+  analysis requests and their API endpoints. It only skips the API level check; the
+  writable `/system` check still applies.
+- Known limit: from Android 14 the system certificate store moved into an APEX module, so
+  MobSF's certificate install into `/system/etc/security/cacerts` does not give HTTPS
+  interception there. Android 12 and 13 work. Banking apps may also detect the emulator.
+- Docker: the MobSF container reaches an emulator running on the host through
+  `host.docker.internal` (set `MOBSF_ANALYZER_IDENTIFIER=host.docker.internal:5555`). The
+  emulator needs a rootable `google_apis` image (not Play Store) started with
+  `-writable-system`.
+
 ### Known Gaps On The Current Branch (remove each item when fixed)
 
 1. Automation is limited by the rules. Eleven Android and four iOS API rules are tagged

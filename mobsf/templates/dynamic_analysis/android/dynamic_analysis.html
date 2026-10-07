@@ -122,7 +122,13 @@ textarea:focus {
                      <br/>
                      <br/>
                      <p>
-                        <button class="btn btn-info disable" role="button"  data-toggle="modal" data-target="#mmobsfy">MobSFy Android Runtime</button> <p>Android instance: <strong>{{ identifier }}</strong></p></div>
+                        <button class="btn btn-info disable" role="button"  data-toggle="modal" data-target="#mmobsfy">MobSFy Android Runtime</button> <p>Android instance: <strong>{{ identifier }}</strong></p>
+                     <div class="form-check mt-2">
+                       <input type="checkbox" class="form-check-input" id="allow-unsupported">
+                       <label class="form-check-label" for="allow-unsupported"><strong>Try unsupported Android versions</strong> (experimental)</label>
+                       <div class="small text-muted">MobSF officially supports dynamic analysis up to a fixed Android version. Tick this to attempt newer ones. Some features may not work, and apps may detect the emulator.</div>
+                     </div>
+                     </div>
                       </p>
                     </div>
                      </div>
@@ -303,6 +309,27 @@ function dynamic_loader(){
     loadingOverlay.classList.remove('hidden');
 }
 
+// Remember the choice and send it with every start-analysis form
+$(function () {
+  var box = $('#allow-unsupported');
+  try {
+    box.prop('checked', localStorage.getItem('mobsfAllowUnsupported') === '1');
+  } catch (e) {}
+  box.on('change', function () {
+    try {
+      localStorage.setItem('mobsfAllowUnsupported', this.checked ? '1' : '0');
+    } catch (e) {}
+  });
+  $('form[action*="/android_dynamic/"]').on('submit', function () {
+    $(this).find('input[name=allow_unsupported]').remove();
+    $('<input>', {
+      type: 'hidden',
+      name: 'allow_unsupported',
+      value: box.is(':checked') ? '1' : '0'
+    }).appendTo(this);
+  });
+});
+
 //MobSFy AJAX
  $("#mobsfy").one( "click", function() {
         $('#stat').append("\nMobSFying Android Runtime\n");
@@ -313,6 +340,7 @@ function dynamic_loader(){
                 data : {
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     identifier: $('#identifier').val() ,
+                    allow_unsupported: $('#allow-unsupported').is(':checked') ? '1' : '0',
                     },
                     success : function(json) {
                         if (json.status==="ok"){

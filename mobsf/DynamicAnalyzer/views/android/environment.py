@@ -41,7 +41,11 @@ ANDROID_API_SUPPORTED = 30
 
 class Environment:
 
-    def __init__(self, identifier=None):
+    def __init__(self, identifier=None, allow_unsupported=False):
+        # The user can choose to try Android versions above
+        # ANDROID_API_SUPPORTED. The default is the supported limit.
+        self.allow_unsupported = allow_unsupported
+        self.last_error = ''
         if identifier:
             self.identifier = identifier
         else:
@@ -511,9 +515,23 @@ class Environment:
                     logger.info('Android API Level '
                                 'identified as %s', api)
                     if int(api) > ANDROID_API_SUPPORTED:
-                        logger.error('This API Level is not supported'
-                                     ' for Dynamic Analysis.')
-                        return False
+                        if not self.allow_unsupported:
+                            logger.error('This API Level is not '
+                                         'supported for Dynamic '
+                                         'Analysis.')
+                            self.last_error = (
+                                f'Android API level {api} is above '
+                                'the level MobSF supports for '
+                                'dynamic analysis '
+                                f'({ANDROID_API_SUPPORTED}). Tick '
+                                '"Try unsupported Android versions" '
+                                'to attempt it anyway.')
+                            return False
+                        logger.warning(
+                            'API Level %s is above the supported '
+                            'level %s. Continuing because the user '
+                            'chose to try it. Some features may '
+                            'not work.', api, ANDROID_API_SUPPORTED)
             except Exception:
                 pass
             err_msg = ('VM\'s /system is not writable. '
@@ -529,6 +547,7 @@ class Environment:
             _, stderr = proc.communicate()
             if b'Read-only' in stderr:
                 logger.error(err_msg)
+                self.last_error = err_msg
                 if runtime == 'emulator':
                     logger.error('Please start the AVD as per '
                                  'MobSF documentation!')

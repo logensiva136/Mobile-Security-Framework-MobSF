@@ -161,9 +161,10 @@ def dynamic_analyzer(request, checksum, api=False):
             logger.warning(
                 'Failed to get Activities/Deeplinks. '
                 'Static Analysis not completed for the app.')
-        env = Environment(identifier)
+        allow = request.POST.get('allow_unsupported') == '1'
+        env = Environment(identifier, allow_unsupported=allow)
         if not env.connect_n_mount():
-            msg = 'Cannot Connect to ' + identifier
+            msg = env.last_error or 'Cannot Connect to ' + identifier
             return print_n_send_error_response(request, msg, api)
         version = env.get_android_version()
         logger.info('Android Version identified as %s', version)
